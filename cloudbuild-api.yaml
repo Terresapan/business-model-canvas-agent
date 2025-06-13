@@ -9,7 +9,7 @@ steps:
         "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest",
         ".",
       ]
-    dir: "terresapan/business-model-canvas-agent/business-model-canvas-agent-533434f1b852a8f12c495db8aec75067e824a6a4/philoagents-api"
+    dir: "philoagents-api"
 
   # Push the Docker image to Artifact Registry
   - name: "gcr.io/cloud-builders/docker"

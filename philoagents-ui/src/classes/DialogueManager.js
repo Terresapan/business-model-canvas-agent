@@ -1,5 +1,5 @@
-import ApiService from '../services/ApiService';
-import WebSocketApiService from '../services/WebSocketApiService';
+import ApiService from "../services/ApiService";
+import WebSocketApiService from "../services/WebSocketApiService";
 
 class DialogueManager {
   constructor(scene) {
@@ -7,27 +7,33 @@ class DialogueManager {
     this.scene = scene;
     this.dialogueBox = null;
     this.activePhilosopher = null;
-    
+
     // State management
     this.isTyping = false;
     this.isStreaming = false;
-    this.currentMessage = '';
-    this.streamingText = '';
-    
+    this.currentMessage = "";
+    this.streamingText = "";
+
     // Cursor properties
     this.cursorBlinkEvent = null;
     this.cursorVisible = true;
-    
+
     // Connection management
     this.hasSetupListeners = false;
     this.disconnectTimeout = null;
+
+    // Game mode and user context
+    this.gameMode = "legacy";
+    this.userToken = null;
   }
 
   // === Initialization ===
-  
-  initialize(dialogueBox) {
+
+  initialize(dialogueBox, gameMode = "legacy", userToken = null) {
     this.dialogueBox = dialogueBox;
-    
+    this.gameMode = gameMode;
+    this.userToken = userToken;
+
     if (!this.hasSetupListeners) {
       this.setupKeyboardListeners();
       this.hasSetupListeners = true;
@@ -35,51 +41,58 @@ class DialogueManager {
   }
 
   setupKeyboardListeners() {
-    this.scene.input.keyboard.on('keydown', async (event) => {
+    this.scene.input.keyboard.on("keydown", async (event) => {
+      // Handle ESC key even when not typing to close dialogue
+      if (event.key === "Escape" && this.dialogueBox.isVisible()) {
+        this.closeDialogue();
+        return;
+      }
+
       if (!this.isTyping) {
-        if (this.isStreaming && (event.key === 'Space' || event.key === ' ')) {
+        if (this.isStreaming && (event.key === "Space" || event.key === " ")) {
           this.skipStreaming();
         }
         return;
       }
-    
+
       this.handleKeyPress(event);
     });
   }
 
   // === Input Handling ===
-  
+
   async handleKeyPress(event) {
-    if (event.key === 'Enter') {
+    if (event.key === "Enter") {
       await this.handleEnterKey();
-    } else if (event.key === 'Escape') {
+    } else if (event.key === "Escape") {
       this.closeDialogue();
-    } else if (event.key === 'Backspace') {
+    } else if (event.key === "Backspace") {
       this.currentMessage = this.currentMessage.slice(0, -1);
       this.updateDialogueText();
-    } else if (event.key.length === 1) { // Single character keys
+    } else if (event.key.length === 1) {
+      // Single character keys
       if (!this.isTyping) {
-        this.currentMessage = '';
+        this.currentMessage = "";
         this.isTyping = true;
       }
-      
+
       this.currentMessage += event.key;
       this.updateDialogueText();
     }
   }
 
   async handleEnterKey() {
-    if (this.currentMessage.trim() !== '') {
-      this.dialogueBox.show('...', true);
+    if (this.currentMessage.trim() !== "") {
+      this.dialogueBox.show("...", true);
       this.stopCursorBlink();
-      
+
       if (this.activePhilosopher.defaultMessage) {
         await this.handleDefaultMessage();
       } else {
         await this.handleWebSocketMessage();
       }
-      
-      this.currentMessage = '';
+
+      this.currentMessage = "";
       this.isTyping = false;
     } else if (!this.isTyping) {
       this.restartTypingPrompt();
@@ -87,22 +100,27 @@ class DialogueManager {
   }
 
   // === Message Processing ===
-  
+
   async handleDefaultMessage() {
     const apiResponse = this.activePhilosopher.defaultMessage;
-    this.dialogueBox.show('', true);
+    this.dialogueBox.show("", true);
     await this.streamText(apiResponse);
   }
 
   async handleWebSocketMessage() {
-    this.dialogueBox.show('', true);
+    this.dialogueBox.show("", true);
     this.isStreaming = true;
-    this.streamingText = '';
-    
+    this.streamingText = "";
+
     try {
-      await this.processWebSocketMessage();
+      // For business mode, use API directly instead of WebSocket
+      if (this.gameMode === "business") {
+        await this.fallbackToRegularApi();
+      } else {
+        await this.processWebSocketMessage();
+      }
     } catch (error) {
-      console.error('WebSocket error:', error);
+      console.error("Communication error:", error);
       await this.fallbackToRegularApi();
     } finally {
       this.isTyping = false;
@@ -110,10 +128,13 @@ class DialogueManager {
   }
 
   async processWebSocketMessage() {
-    await WebSocketApiService.connect();
-    
+    // Use appropriate WebSocket endpoint based on game mode
+    const wsEndpoint =
+      this.gameMode === "business" ? "/ws/chat/business" : "/ws/chat";
+    await WebSocketApiService.connect(wsEndpoint);
+
     const callbacks = {
-      onMessage: () => { 
+      onMessage: () => {
         this.finishStreaming();
       },
       onChunk: (chunk) => {
@@ -125,20 +146,29 @@ class DialogueManager {
       },
       onStreamingEnd: () => {
         this.finishStreaming();
-      }
+      },
     };
-    
-    await WebSocketApiService.sendMessage(
-      this.activePhilosopher,
-      this.currentMessage,
-      callbacks
-    );
-    
-    while (this.isStreaming) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+
+    if (this.gameMode === "business") {
+      await WebSocketApiService.sendBusinessMessage(
+        this.activePhilosopher,
+        this.currentMessage,
+        this.userToken,
+        callbacks
+      );
+    } else {
+      await WebSocketApiService.sendMessage(
+        this.activePhilosopher,
+        this.currentMessage,
+        callbacks
+      );
     }
-    
-    this.currentMessage = '';
+
+    while (this.isStreaming) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    this.currentMessage = "";
     WebSocketApiService.disconnect();
   }
 
@@ -148,43 +178,54 @@ class DialogueManager {
   }
 
   async fallbackToRegularApi() {
-    const apiResponse = await ApiService.sendMessage(
-      this.activePhilosopher, 
-      this.currentMessage
-    );
+    let apiResponse;
+
+    if (this.gameMode === "business") {
+      apiResponse = await ApiService.sendBusinessMessage(
+        this.activePhilosopher,
+        this.currentMessage,
+        this.userToken
+      );
+    } else {
+      apiResponse = await ApiService.sendMessage(
+        this.activePhilosopher,
+        this.currentMessage
+      );
+    }
+
     await this.streamText(apiResponse);
   }
 
   // === UI Management ===
-  
+
   updateDialogueText() {
-    const displayText = this.currentMessage + (this.cursorVisible ? '|' : '');
+    const displayText = this.currentMessage + (this.cursorVisible ? "|" : "");
     this.dialogueBox.show(displayText, true);
   }
 
   restartTypingPrompt() {
-    this.currentMessage = '';
-    this.dialogueBox.show('|', true);
-    
+    this.currentMessage = "";
+    this.dialogueBox.show("|", true);
+
     this.stopCursorBlink();
     this.cursorVisible = true;
     this.startCursorBlink();
-    
+
     this.updateDialogueText();
   }
 
   // === Cursor Management ===
-  
+
   startCursorBlink() {
     this.cursorBlinkEvent = this.scene.time.addEvent({
-      delay: 300,  
+      delay: 300,
       callback: () => {
         if (this.dialogueBox.isVisible() && this.isTyping) {
           this.cursorVisible = !this.cursorVisible;
           this.updateDialogueText();
         }
       },
-      loop: true
+      loop: true,
     });
   }
 
@@ -196,17 +237,17 @@ class DialogueManager {
   }
 
   // === Dialogue Flow Control ===
-  
+
   startDialogue(philosopher) {
     this.cancelDisconnectTimeout();
-    
+
     this.activePhilosopher = philosopher;
     this.isTyping = true;
-    this.currentMessage = '';
-    
-    this.dialogueBox.show('|', true);
+    this.currentMessage = "";
+
+    this.dialogueBox.show("|", true);
     this.stopCursorBlink();
-    
+
     this.cursorVisible = true;
     this.startCursorBlink();
   }
@@ -214,9 +255,9 @@ class DialogueManager {
   closeDialogue() {
     this.dialogueBox.hide();
     this.isTyping = false;
-    this.currentMessage = '';
+    this.currentMessage = "";
     this.isStreaming = false;
-    
+
     this.stopCursorBlink();
     this.scheduleDisconnect();
   }
@@ -227,38 +268,38 @@ class DialogueManager {
 
   continueDialogue() {
     if (!this.dialogueBox.isVisible()) return;
-    
+
     if (this.isStreaming) {
       this.skipStreaming();
     } else if (!this.isTyping) {
       this.isTyping = true;
-      this.currentMessage = '';
-      this.dialogueBox.show('', false);
+      this.currentMessage = "";
+      this.dialogueBox.show("", false);
       this.restartTypingPrompt();
     }
   }
 
   // === Text Streaming ===
-  
+
   async streamText(text, speed = 30) {
     this.isStreaming = true;
-    let displayedText = '';
-    
+    let displayedText = "";
+
     this.stopCursorBlink();
-    
+
     for (let i = 0; i < text.length; i++) {
       displayedText += text[i];
       this.dialogueBox.show(displayedText, true);
-      
-      await new Promise(resolve => setTimeout(resolve, speed));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, speed));
+
       if (!this.isStreaming) break;
     }
-    
+
     if (this.isStreaming) {
       this.dialogueBox.show(text, true);
     }
-    
+
     this.isStreaming = false;
     return true;
   }
@@ -268,7 +309,7 @@ class DialogueManager {
   }
 
   // === Connection Management ===
-  
+
   cancelDisconnectTimeout() {
     if (this.disconnectTimeout) {
       clearTimeout(this.disconnectTimeout);
@@ -278,11 +319,11 @@ class DialogueManager {
 
   scheduleDisconnect() {
     this.cancelDisconnectTimeout();
-    
+
     this.disconnectTimeout = setTimeout(() => {
       WebSocketApiService.disconnect();
     }, 5000);
   }
 }
 
-export default DialogueManager; 
+export default DialogueManager;

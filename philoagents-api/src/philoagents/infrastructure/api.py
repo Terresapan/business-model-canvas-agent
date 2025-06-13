@@ -1,22 +1,18 @@
 from contextlib import asynccontextmanager
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from opik.integrations.langchain import OpikTracer
 from pydantic import BaseModel
 
-from philoagents.application.conversation_service.generate_response import (
-    get_response,
-    get_streaming_response,
+from philoagents.application.conversation_service.business_workflow_response import (
+    get_business_response,
+    get_business_streaming_response,
 )
-from philoagents.application.conversation_service.reset_conversation import (
-    reset_conversation_state,
-)
-from philoagents.domain.philosopher_factory import PhilosopherFactory
+from philoagents.domain.business_expert_factory import BusinessExpertFactory
+from philoagents.domain.business_user_factory import BusinessUserFactory
 
-from .opik_utils import configure
-
-configure()
 
 
 @asynccontextmanager
@@ -24,9 +20,6 @@ async def lifespan(app: FastAPI):
     """Handles startup and shutdown events for the API."""
     # Startup code (if any) goes here
     yield
-    # Shutdown code goes here
-    opik_tracer = OpikTracer()
-    opik_tracer.flush()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -40,24 +33,36 @@ app.add_middleware(
 )
 
 
-class ChatMessage(BaseModel):
+class BusinessChatMessage(BaseModel):
     message: str
-    philosopher_id: str
+    expert_id: str
+    user_token: Optional[str] = None
 
 
-@app.post("/chat")
-async def chat(chat_message: ChatMessage):
+@app.post("/chat/business")
+async def business_chat(chat_message: BusinessChatMessage):
+    """Chat with a Business Canvas expert."""
     try:
-        philosopher_factory = PhilosopherFactory()
-        philosopher = philosopher_factory.get_philosopher(chat_message.philosopher_id)
+        expert_factory = BusinessExpertFactory()
+        expert = expert_factory.get_expert(chat_message.expert_id)
 
-        response, _ = await get_response(
+        # Get user context if token provided
+        user_context = None
+        if chat_message.user_token:
+            user_factory = BusinessUserFactory()
+            user = user_factory.get_user_by_token(chat_message.user_token)
+            if user:
+                user_context = user.dict()
+
+        response, _ = await get_business_response(
             messages=chat_message.message,
-            philosopher_id=chat_message.philosopher_id,
-            philosopher_name=philosopher.name,
-            philosopher_perspective=philosopher.perspective,
-            philosopher_style=philosopher.style,
-            philosopher_context="",
+            expert_id=chat_message.expert_id,
+            expert_name=expert.name,
+            expert_domain=expert.domain,
+            expert_perspective=expert.perspective,
+            expert_style=expert.style,
+            expert_context=f"Domain: {expert.domain}. Expertise: {expert.perspective}",
+            user_context=user_context,
         )
         return {"response": response}
     except Exception as e:
@@ -67,73 +72,51 @@ async def chat(chat_message: ChatMessage):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket):
-    await websocket.accept()
-
+@app.get("/business/experts")
+async def get_business_experts():
+    """Get list of available business canvas experts."""
     try:
-        while True:
-            data = await websocket.receive_json()
+        expert_factory = BusinessExpertFactory()
+        expert_ids = expert_factory.get_available_experts()
+        
+        experts = []
+        for expert_id in expert_ids:
+            expert = expert_factory.get_expert(expert_id)
+            experts.append({
+                "id": expert.id,
+                "name": expert.name,
+                "domain": expert.domain,
+                "perspective": expert.perspective,
+                "style": expert.style,
+            })
+        
+        return {"experts": experts}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-            if "message" not in data or "philosopher_id" not in data:
-                await websocket.send_json(
-                    {
-                        "error": "Invalid message format. Required fields: 'message' and 'philosopher_id'"
+
+@app.get("/business/tokens/validate")
+async def validate_token(token: str = Query(...)):
+    """Validate a business user token."""
+    try:
+        user_factory = BusinessUserFactory()
+        is_valid = user_factory.is_valid_token(token)
+        
+        if is_valid:
+            user = user_factory.get_user_by_token(token)
+            if user:
+                return {
+                    "valid": True,
+                    "user": {
+                        "business_name": user.business_name,
+                        "sector": user.sector,
+                        "business_type": user.business_type,
                     }
-                )
-                continue
-
-            try:
-                philosopher_factory = PhilosopherFactory()
-                philosopher = philosopher_factory.get_philosopher(
-                    data["philosopher_id"]
-                )
-
-                # Use streaming response instead of get_response
-                response_stream = get_streaming_response(
-                    messages=data["message"],
-                    philosopher_id=data["philosopher_id"],
-                    philosopher_name=philosopher.name,
-                    philosopher_perspective=philosopher.perspective,
-                    philosopher_style=philosopher.style,
-                    philosopher_context="",
-                )
-
-                # Send initial message to indicate streaming has started
-                await websocket.send_json({"streaming": True})
-
-                # Stream each chunk of the response
-                full_response = ""
-                async for chunk in response_stream:
-                    full_response += chunk
-                    await websocket.send_json({"chunk": chunk})
-
-                await websocket.send_json(
-                    {"response": full_response, "streaming": False}
-                )
-
-            except Exception as e:
-                opik_tracer = OpikTracer()
-                opik_tracer.flush()
-
-                await websocket.send_json({"error": str(e)})
-
-    except WebSocketDisconnect:
-        pass
-
-
-@app.post("/reset-memory")
-async def reset_conversation():
-    """Resets the conversation state. It deletes the two collections needed for keeping LangGraph state in MongoDB.
-
-    Raises:
-        HTTPException: If there is an error resetting the conversation state.
-    Returns:
-        dict: A dictionary containing the result of the reset operation.
-    """
-    try:
-        result = await reset_conversation_state()
-        return result
+                }
+            else:
+                return {"valid": False}
+        else:
+            return {"valid": False}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

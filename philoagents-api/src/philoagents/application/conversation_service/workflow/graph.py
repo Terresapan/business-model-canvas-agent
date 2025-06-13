@@ -4,45 +4,33 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import tools_condition
 
 from philoagents.application.conversation_service.workflow.edges import (
-    should_summarize_conversation,
+    should_summarize_business_conversation,
 )
 from philoagents.application.conversation_service.workflow.nodes import (
-    conversation_node,
-    summarize_conversation_node,
-    retriever_node,
-    summarize_context_node,
-    connector_node,
+    business_conversation_node,
+    business_summarize_conversation_node,
 )
-from philoagents.application.conversation_service.workflow.state import PhilosopherState
+from philoagents.application.conversation_service.workflow.state import BusinessCanvasState
+from philoagents.config import settings
 
 
 @lru_cache(maxsize=1)
-def create_workflow_graph():
-    graph_builder = StateGraph(PhilosopherState)
+def create_business_workflow_graph():
+    """Create the Business Model Canvas workflow graph."""
+    graph_builder = StateGraph(BusinessCanvasState)
 
-    # Add all nodes
-    graph_builder.add_node("conversation_node", conversation_node)
-    graph_builder.add_node("retrieve_philosopher_context", retriever_node)
-    graph_builder.add_node("summarize_conversation_node", summarize_conversation_node)
-    graph_builder.add_node("summarize_context_node", summarize_context_node)
-    graph_builder.add_node("connector_node", connector_node)
-    
-    # Define the flow
-    graph_builder.add_edge(START, "conversation_node")
-    graph_builder.add_conditional_edges(
-        "conversation_node",
-        tools_condition,
-        {
-            "tools": "retrieve_philosopher_context",
-            END: "connector_node"
-        }
-    )
-    graph_builder.add_edge("retrieve_philosopher_context", "summarize_context_node")
-    graph_builder.add_edge("summarize_context_node", "conversation_node")
-    graph_builder.add_conditional_edges("connector_node", should_summarize_conversation)
-    graph_builder.add_edge("summarize_conversation_node", END)
+    # Add business canvas nodes
+    graph_builder.add_node("business_conversation_node", business_conversation_node)
+    graph_builder.add_node("business_summarize_conversation_node", business_summarize_conversation_node)
+
+    # Define the business workflow flow
+    graph_builder.add_edge(START, "business_conversation_node")
+    graph_builder.add_conditional_edges("business_conversation_node", should_summarize_business_conversation)
+    graph_builder.add_edge("business_summarize_conversation_node", END)
     
     return graph_builder
 
-# Compiled without a checkpointer. Used for LangGraph Studio
-graph = create_workflow_graph().compile()
+
+# Primary graph for Business Model Canvas 
+graph = create_business_workflow_graph().compile()
+

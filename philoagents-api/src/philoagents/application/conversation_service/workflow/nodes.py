@@ -3,28 +3,44 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.prebuilt import ToolNode
 
 from philoagents.application.conversation_service.workflow.chains import (
-    get_context_summary_chain,
-    get_conversation_summary_chain,
-    get_philosopher_response_chain,
+    get_business_conversation_summary_chain,
+    get_business_expert_response_chain,
 )
-from philoagents.application.conversation_service.workflow.state import PhilosopherState
-from philoagents.application.conversation_service.workflow.tools import tools
+
+from philoagents.application.conversation_service.workflow.state import BusinessCanvasState
 from philoagents.config import settings
+from philoagents.domain.business_user_factory import BusinessUserFactory
+from philoagents.domain.business_user import BusinessUser
+from loguru import logger
 
-retriever_node = ToolNode(tools)
-
-
-async def conversation_node(state: PhilosopherState, config: RunnableConfig):
+async def business_conversation_node(state: BusinessCanvasState, config: RunnableConfig):
+    """Business canvas expert conversation node."""
     summary = state.get("summary", "")
-    conversation_chain = get_philosopher_response_chain()
+    conversation_chain = get_business_expert_response_chain()
+
+    # Format user context for the prompt
+    user_context_section = ""
+    user_context_data = state.get("user_context")
+    if user_context_data:
+        try:
+            # Reconstruct BusinessUser from dict if needed
+            user = BusinessUser(**user_context_data)
+            user_context_section = BusinessUserFactory.format_user_context(user)
+        except Exception as e:
+            logger.error(f"Error reconstructing BusinessUser in workflow node: {e}")
+            user_context_section = "You're speaking with a business owner seeking guidance."
+    else:
+        user_context_section = BusinessUserFactory.format_user_context(None)
 
     response = await conversation_chain.ainvoke(
         {
             "messages": state["messages"],
-            "philosopher_context": state["philosopher_context"],
-            "philosopher_name": state["philosopher_name"],
-            "philosopher_perspective": state["philosopher_perspective"],
-            "philosopher_style": state["philosopher_style"],
+            "expert_context": state["expert_context"],
+            "expert_name": state["expert_name"],
+            "expert_domain": state["expert_domain"],
+            "expert_perspective": state["expert_perspective"],
+            "expert_style": state["expert_style"],
+            "user_context_section": user_context_section,
             "summary": summary,
         },
         config,
@@ -32,38 +48,22 @@ async def conversation_node(state: PhilosopherState, config: RunnableConfig):
     
     return {"messages": response}
 
-
-async def summarize_conversation_node(state: PhilosopherState):
+async def business_summarize_conversation_node(state: BusinessCanvasState):
+    """Business expert conversation summary node."""
     summary = state.get("summary", "")
-    summary_chain = get_conversation_summary_chain(summary)
+    summary_chain = get_business_conversation_summary_chain(summary)
 
     response = await summary_chain.ainvoke(
         {
             "messages": state["messages"],
-            "philosopher_name": state["philosopher_name"],
+            "expert_name": state["expert_name"],
             "summary": summary,
         }
     )
 
     delete_messages = [
-        RemoveMessage(id=m.id)
+        RemoveMessage(id=m.id) # type: ignore
         for m in state["messages"][: -settings.TOTAL_MESSAGES_AFTER_SUMMARY]
     ]
     return {"summary": response.content, "messages": delete_messages}
 
-
-async def summarize_context_node(state: PhilosopherState):
-    context_summary_chain = get_context_summary_chain()
-
-    response = await context_summary_chain.ainvoke(
-        {
-            "context": state["messages"][-1].content,
-        }
-    )
-    state["messages"][-1].content = response.content
-
-    return {}
-
-
-async def connector_node(state: PhilosopherState):
-    return {}

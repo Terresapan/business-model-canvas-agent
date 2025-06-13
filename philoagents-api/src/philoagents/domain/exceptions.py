@@ -1,4 +1,4 @@
-class PhilosopherNameNotFound(Exception):
+class ExpertNameNotFound(Exception):
     """Exception raised when a philosopher's name is not found."""
 
     def __init__(self, philosopher_id: str):
@@ -6,7 +6,7 @@ class PhilosopherNameNotFound(Exception):
         super().__init__(self.message)
 
 
-class PhilosopherPerspectiveNotFound(Exception):
+class ExpertPerspectiveNotFound(Exception):
     """Exception raised when a philosopher's perspective is not found."""
 
     def __init__(self, philosopher_id: str):
@@ -14,7 +14,7 @@ class PhilosopherPerspectiveNotFound(Exception):
         super().__init__(self.message)
 
 
-class PhilosopherStyleNotFound(Exception):
+class ExpertStyleNotFound(Exception):
     """Exception raised when a philosopher's style is not found."""
 
     def __init__(self, philosopher_id: str):
@@ -22,7 +22,7 @@ class PhilosopherStyleNotFound(Exception):
         super().__init__(self.message)
 
 
-class PhilosopherContextNotFound(Exception):
+class ExpertContextNotFound(Exception):
     """Exception raised when a philosopher's context is not found."""
 
     def __init__(self, philosopher_id: str):

@@ -1,0 +1,48 @@
+# cloudbuild-api.yaml
+steps:
+  # Build the Docker image for philoagents-api
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest",
+        ".",
+      ]
+    dir: "terresapan/business-model-canvas-agent/business-model-canvas-agent-533434f1b852a8f12c495db8aec75067e824a6a4/philoagents-api"
+
+  # Push the Docker image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest",
+      ]
+
+  # Deploy the image to Cloud Run
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "philoagents-api"
+      - "--image"
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest"
+      - "--platform"
+      - "managed"
+      - "--region"
+      - "us-central1"
+      - "--allow-unauthenticated"
+      - "--set-env-vars"
+      - "GROQ_API_KEY=${_GROQ_API_KEY},LANGSMITH_API_KEY=${_LANGSMITH_API_KEY},LANGSMITH_TRACING=${_LANGSMITH_TRACING},LANGSMITH_ENDPOINT=${_LANGSMITH_ENDPOINT},LANGSMITH_PROJECT=${_LANGSMITH_PROJECT}"
+      - "--port"
+      - "8000"
+images:
+  - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest"
+options:
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _GROQ_API_KEY: "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"
+  _LANGSMITH_API_KEY: "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"
+  _LANGSMITH_TRACING: "true"
+  _LANGSMITH_ENDPOINT: "https://api.smith.langchain.com"
+  _LANGSMITH_PROJECT: "Business Model Canvas"

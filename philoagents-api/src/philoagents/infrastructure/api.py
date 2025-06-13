@@ -36,7 +36,7 @@ app.add_middleware(
 class BusinessChatMessage(BaseModel):
     message: str
     expert_id: str
-    user_token: Optional[str] = None
+    user_token: str
 
 
 @app.post("/chat/business")
@@ -62,6 +62,7 @@ async def business_chat(chat_message: BusinessChatMessage):
             expert_perspective=expert.perspective,
             expert_style=expert.style,
             expert_context=f"Domain: {expert.domain}. Expertise: {expert.perspective}",
+            user_token=chat_message.user_token,
             user_context=user_context,
         )
         return {"response": response}

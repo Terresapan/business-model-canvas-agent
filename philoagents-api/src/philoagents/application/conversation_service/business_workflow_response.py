@@ -19,6 +19,7 @@ async def get_business_response(
     expert_perspective: str,
     expert_style: str,
     expert_context: str,
+    user_token: str,
     user_context: Optional[Dict[str, Any]] = None,
     new_thread: bool = False,
 ) -> tuple[str, BusinessCanvasState]:
@@ -32,6 +33,7 @@ async def get_business_response(
         expert_perspective: Expert's approach and expertise.
         expert_style: Style of conversation.
         expert_context: Additional context about the expert.
+        user_token: Unique identifier for the user to isolate conversations.
         user_context: Business user context and profile.
         new_thread: Whether to create a new conversation thread.
 
@@ -55,9 +57,12 @@ async def get_business_response(
         # ) as checkpointer:
         graph = graph_builder.compile(checkpointer=checkpointer)
 
-        thread_id = (
-            expert_id if not new_thread else f"{expert_id}-{uuid.uuid4()}"
-        )
+        # Generate thread ID using expert ID and user token
+        thread_id = f"{expert_id}:{user_token}"
+        
+        # Append UUID if starting new thread
+        if new_thread:
+            thread_id = f"{thread_id}:{uuid.uuid4()}"
         config = {
             "configurable": {"thread_id": thread_id},
         }
@@ -88,6 +93,7 @@ async def get_business_streaming_response(
     expert_perspective: str,
     expert_style: str,
     expert_context: str,
+    user_token: str,
     user_context: Optional[Dict[str, Any]] = None,
     new_thread: bool = False,
 ) -> AsyncGenerator[str, None]:
@@ -101,6 +107,7 @@ async def get_business_streaming_response(
         expert_perspective: Expert's approach and expertise.
         expert_style: Style of conversation.
         expert_context: Additional context about the expert.
+        user_token: Unique identifier for the user to isolate conversations.
         user_context: Business user context and profile.
         new_thread: Whether to create a new conversation thread.
 
@@ -121,9 +128,12 @@ async def get_business_streaming_response(
         # ) as checkpointer:
         graph = graph_builder.compile(checkpointer=checkpointer)
 
-        thread_id = (
-            expert_id if not new_thread else f"{expert_id}-{uuid.uuid4()}"
-        )
+        # Generate thread ID using expert ID and user token
+        thread_id = f"{expert_id}:{user_token}"
+        
+        # Append UUID if starting new thread
+        if new_thread:
+            thread_id = f"{thread_id}:{uuid.uuid4()}"
         config = {
             "configurable": {"thread_id": thread_id},
         }

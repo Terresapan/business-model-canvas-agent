@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     LANGSMITH_API_KEY: str | None = Field(default=None)
 
     # --- Agents Configuration ---
-    TOTAL_MESSAGES_SUMMARY_TRIGGER: int = 30
+    TOTAL_MESSAGES_SUMMARY_TRIGGER: int = 14
     TOTAL_MESSAGES_AFTER_SUMMARY: int = 5
 
     # --- Paths Configuration ---

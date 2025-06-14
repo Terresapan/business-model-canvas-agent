@@ -1,6 +1,5 @@
 # cloudbuild-api.yaml
 steps:
-  # Build the Docker image for philoagents-api
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
@@ -9,9 +8,8 @@ steps:
         "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest",
         ".",
       ]
-    dir: "philoagents-api"
+    dir: "philoagents-api" # Ensure this is 'philoagents-api' and not 'terresapan/...'
 
-  # Push the Docker image to Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
@@ -19,7 +17,6 @@ steps:
         "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest",
       ]
 
-  # Deploy the image to Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "run"
@@ -34,7 +31,7 @@ steps:
       - "--allow-unauthenticated"
       - "--port"
       - "8000"
-    secretEnv: # Secrets will be securely injected as environment variables into the Cloud Run container
+    secretEnv:
       GROQ_API_KEY: "GROQ_API_KEY"
       LANGSMITH_API_KEY: "LANGSMITH_API_KEY"
       LANGSMITH_TRACING: "LANGSMITH_TRACING"
@@ -44,7 +41,6 @@ images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest"
 options:
   logging: CLOUD_LOGGING_ONLY
-  # availableSecrets tells Cloud Build which secrets to fetch from Secret Manager
   availableSecrets:
     - secretManager:
         env: "GROQ_API_KEY"
@@ -62,5 +58,4 @@ options:
         env: "LANGSMITH_PROJECT"
         secret: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_PROJECT/versions/latest
 substitutions:
-  _PROJECT_NUMBER: "635390037922" # <--- IMPORTANT: Replace with your actual project number
-  # Remove individual secret substitutions here
+  _PROJECT_NUMBER: "635390037922"

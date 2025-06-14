@@ -31,32 +31,10 @@ steps:
       - "--allow-unauthenticated"
       - "--port"
       - "8000"
-    secretEnv:
-      - "GROQ_API_KEY"
-      - "LANGSMITH_API_KEY"
-      - "LANGSMITH_TRACING"
-      - "LANGSMITH_ENDPOINT"
-      - "LANGSMITH_PROJECT"
+      - "--set-secrets=GROQ_API_KEY=GROQ_API_KEY:latest,LANGSMITH_API_KEY=LANGSMITH_API_KEY:latest,LANGSMITH_TRACING=LANGSMITH_TRACING:latest,LANGSMITH_ENDPOINT=LANGSMITH_ENDPOINT:latest,LANGSMITH_PROJECT=LANGSMITH_PROJECT:latest"
 images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest"
 options:
   logging: CLOUD_LOGGING_ONLY
-  availableSecrets:
-    secrets:
-      - secretManager:
-          env: "GROQ_API_KEY"
-          versionName: projects/$_PROJECT_NUMBER/secrets/GROQ_API_KEY/versions/latest
-      - secretManager:
-          env: "LANGSMITH_API_KEY"
-          versionName: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_API_KEY/versions/latest
-      - secretManager:
-          env: "LANGSMITH_TRACING"
-          versionName: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_TRACING/versions/latest
-      - secretManager:
-          env: "LANGSMITH_ENDPOINT"
-          versionName: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_ENDPOINT/versions/latest
-      - secretManager:
-          env: "LANGSMITH_PROJECT"
-          versionName: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_PROJECT/versions/latest
 substitutions:
   _PROJECT_NUMBER: "635390037922" # Your Google Cloud Project Number

@@ -8,7 +8,7 @@ steps:
         "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest",
         ".",
       ]
-    dir: "philoagents-api" # Ensure this is 'philoagents-api' and not 'terresapan/...'
+    dir: "philoagents-api"
 
   - name: "gcr.io/cloud-builders/docker"
     args:
@@ -58,4 +58,4 @@ options:
         env: "LANGSMITH_PROJECT"
         secret: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_PROJECT/versions/latest
 substitutions:
-  _PROJECT_NUMBER: "635390037922"
+  _PROJECT_NUMBER: "635390037922" # Your Google Cloud Project Number

@@ -1,14 +1,19 @@
 class ApiService {
   constructor() {
-    const isHttps = window.location.protocol === "https:";
-
-    if (isHttps) {
-      console.log("Using GitHub Codespaces");
-      const currentHostname = window.location.hostname;
-      this.apiUrl = `https://${currentHostname.replace("8080", "8000")}`;
+    if (process.env.NODE_ENV === "production") {
+      this.apiUrl = process.env.API_URL;
     } else {
-      this.apiUrl = "process.env.API_URL";
+      const isHttps = window.location.protocol === "https:";
+
+      if (isHttps) {
+        console.log("Using GitHub Codespaces");
+        const currentHostname = window.location.hostname;
+        this.apiUrl = `https://${currentHostname.replace("8080", "8000")}`;
+      } else {
+        this.apiUrl = "http://localhost:8000";
+      }
     }
+    console.log("Using API URL:", this.apiUrl);
   }
 
   async request(endpoint, method, data) {

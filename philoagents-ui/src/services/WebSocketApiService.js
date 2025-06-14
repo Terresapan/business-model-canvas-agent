@@ -4,7 +4,22 @@ class WebSocketApiService {
     this.initializeConnectionProperties();
 
     // Set up WebSocket URL based on environment
-    this.baseUrl = this.determineWebSocketBaseUrl();
+    if (process.env.NODE_ENV === "production") {
+      this.baseUrl = process.env.API_URL; // Re-use the http API URL from environment
+      this.wsUrl = this.baseUrl.replace(/^http/, "ws"); // Convert to WebSocket URL
+    } else {
+      const isHttps = window.location.protocol === "https:";
+      if (isHttps) {
+        const currentHostname = window.location.hostname;
+        this.baseUrl = `https://${currentHostname.replace("8080", "8000")}`;
+        this.wsUrl = `wss://${currentHostname.replace("8080", "8000")}`;
+      } else {
+        this.baseUrl = "http://localhost:8000";
+        this.wsUrl = "ws://localhost:8000";
+      }
+    }
+    console.log("Using WebSocket Base URL:", this.baseUrl);
+    console.log("Using WebSocket URL:", this.wsUrl);
   }
 
   initializeConnectionProperties() {

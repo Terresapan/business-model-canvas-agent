@@ -19,7 +19,7 @@ BUSINESS_USER_PROFILES = {
             "Build customer loyalty program",
             "Increase weekend catering orders"
         ],
-        current_focus="Looking to understand customer segments better and improve online ordering"
+        current_focus="Looking to understand customer segments better, improve online ordering and decrease operational costs"
     ),
     "TechFix Solutions": BusinessUser(
         token="TechFix Solutions",

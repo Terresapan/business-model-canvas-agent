@@ -5,6 +5,8 @@ steps:
     args:
       [
         "build",
+        "--build-arg",
+        "API_URL=${_API_URL}",
         "-t",
         "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-ui:latest",
         ".",

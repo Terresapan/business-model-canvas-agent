@@ -12,6 +12,10 @@ RUN npm install
 # The .dockerignore file will exclude node_modules and other unnecessary files
 COPY . .
 
+# Accept API_URL as a build argument
+ARG API_URL
+ENV API_URL=$API_URL
+
 # Build the application for production
 # This command runs your webpack/config.prod.js
 RUN npm run build

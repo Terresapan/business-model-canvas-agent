@@ -7,7 +7,7 @@ class ApiService {
       const currentHostname = window.location.hostname;
       this.apiUrl = `https://${currentHostname.replace("8080", "8000")}`;
     } else {
-      this.apiUrl = "http://localhost:8000";
+      this.apiUrl = "process.env.API_URL";
     }
   }
 

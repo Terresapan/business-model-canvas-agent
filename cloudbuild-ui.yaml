@@ -38,3 +38,5 @@ images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-ui:latest"
 options:
   logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _API_URL: "https://philoagents-api-635390037922.us-central1.run.app"

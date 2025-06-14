@@ -32,17 +32,35 @@ steps:
       - "--region"
       - "us-central1"
       - "--allow-unauthenticated"
-      - "--set-env-vars"
-      - "GROQ_API_KEY=${_GROQ_API_KEY},LANGSMITH_API_KEY=${_LANGSMITH_API_KEY},LANGSMITH_TRACING=${_LANGSMITH_TRACING},LANGSMITH_ENDPOINT=${_LANGSMITH_ENDPOINT},LANGSMITH_PROJECT=${_LANGSMITH_PROJECT}"
       - "--port"
       - "8000"
+    secretEnv: # Secrets will be securely injected as environment variables into the Cloud Run container
+      GROQ_API_KEY: "GROQ_API_KEY"
+      LANGSMITH_API_KEY: "LANGSMITH_API_KEY"
+      LANGSMITH_TRACING: "LANGSMITH_TRACING"
+      LANGSMITH_ENDPOINT: "LANGSMITH_ENDPOINT"
+      LANGSMITH_PROJECT: "LANGSMITH_PROJECT"
 images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest"
 options:
   logging: CLOUD_LOGGING_ONLY
+  # availableSecrets tells Cloud Build which secrets to fetch from Secret Manager
+  availableSecrets:
+    - secretManager:
+        env: "GROQ_API_KEY"
+        secret: projects/$_PROJECT_NUMBER/secrets/GROQ_API_KEY/versions/latest
+    - secretManager:
+        env: "LANGSMITH_API_KEY"
+        secret: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_API_KEY/versions/latest
+    - secretManager:
+        env: "LANGSMITH_TRACING"
+        secret: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_TRACING/versions/latest
+    - secretManager:
+        env: "LANGSMITH_ENDPOINT"
+        secret: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_ENDPOINT/versions/latest
+    - secretManager:
+        env: "LANGSMITH_PROJECT"
+        secret: projects/$_PROJECT_NUMBER/secrets/LANGSMITH_PROJECT/versions/latest
 substitutions:
-  _GROQ_API_KEY: "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"
-  _LANGSMITH_API_KEY: "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"
-  _LANGSMITH_TRACING: "true"
-  _LANGSMITH_ENDPOINT: "https://api.smith.langchain.com"
-  _LANGSMITH_PROJECT: "Business Model Canvas"
+  _PROJECT_NUMBER: "635390037922" # <--- IMPORTANT: Replace with your actual project number
+  # Remove individual secret substitutions here

@@ -8,7 +8,7 @@ export class MainMenu extends Scene {
     this.dropdownText = null;
     this.userToken = null;
     this.businesses = [
-      "Sarah's Artisan Bakery",
+      "Diva Rides",
       "TechFix Solutions",
       "Bloom & Co Florist",
       "FitLife Personal Training",

@@ -2,7 +2,7 @@ from typing import Optional
 from philoagents.domain.business_user import BusinessUser
 
 BUSINESS_USER_PROFILES = {
-    "Sarah's Artisan Bakery": BusinessUser(
+    "Diva Rides": BusinessUser(
         token="Diva Rides",
         owner_name="Diana Walker",
         business_name="Diva Rides",

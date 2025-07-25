@@ -3,23 +3,28 @@ from philoagents.domain.business_user import BusinessUser
 
 BUSINESS_USER_PROFILES = {
     "Sarah's Artisan Bakery": BusinessUser(
-        token="Sarah's Artisan Bakery",
-        owner_name="Sarah Mitchell",
-        business_name="Sarah's Artisan Bakery",
-        sector="Food & Beverage",
-        business_type="Local Bakery",
-        size="Small (5 employees)",
+        token="Diva Rides",
+        owner_name="Diana Walker",
+        business_name="Diva Rides",
+        sector="independent ride-sharing service",
+        business_type="a private, independent ride-sharing service. The owner, Diana, uses her personal SUVs to provide pre-scheduled and on-demand rides for cash, positioning her service as a more personal and often lower-cost alternative to platforms like Uber and Lyft",
+        size="Small (2 employees)",
         challenges=[
-            "Limited online presence", 
-            "Seasonal demand fluctuations",
-            "Competition from chain bakeries"
+            "Inconsistent Customer Flow: The primary challenge is the lack of a steady, consistent stream of customers. Business can be busy in the mornings but then slow down for the rest of the day, making the income unreliable.", 
+            "Customer Acquisition:Relying on word-of-mouth and social media platforms like Nextdoor and Facebook has not generated a consistent enough 'traffic' of riders.",
+            "Low Profit Margins: To compete with Uber and Lyft, Diana keeps her prices low, which limits her profitability and makes it difficult to absorb operational costs like vehicle maintenance and fuel.",
+            "Resource Underutilization: The business owns two vehicles but lacks consistent drivers (the owner, her son, and her boyfriend are not always available), meaning the assets are not being used to their full potential.",
         ],
         goals=[
-            "Expand delivery service", 
-            "Build customer loyalty program",
-            "Increase weekend catering orders"
+            "Immediate Goal: To establish a consistent and predictable revenue stream that is sufficient to cover personal living expenses (like her mortgage) and the costs of running the business.", 
+            "Aspirational Goal: To scale the business by expanding her fleet to 4-6 newer vehicles and hiring a team of reliable drivers to work for her. She also envisions expanding into group transportation, such as providing transport for church trips.",
         ],
-        current_focus="Looking to understand customer segments better, improve online ordering and decrease operational costs"
+        current_focus="""
+        Based on the consultant's guidance, the immediate focus is to move from being a general taxi service to a specialized transportation provider by concentrating on the following:
+        1, Defining Target Customer Segments: Deeply analyzing and focusing on her most valuable customer groups, specifically: 1) working professionals who need reliable daily commutes and 2) elderly individuals who need transport for appointments, shopping, and church.
+        2, Developing a Unique Value Proposition: Creating a clear selling point that differentiates her from Uber/Lyft. This includes offering highly reliable, pre-scheduled, and personalized service (e.g., a subscription model for a weekly churchgoer) that larger platforms cannot match.
+        3, Building Stronger Customer Relationships: Shifting the model from one-off rides to building loyal, long-term relationships that ensure repeat business.
+        4, Identifying Key Partners: Exploring partnerships with organizations like churches or local businesses that can provide a consistent stream of customers from her target segments."""
     ),
     "TechFix Solutions": BusinessUser(
         token="TechFix Solutions",

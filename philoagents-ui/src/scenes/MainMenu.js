@@ -1,4 +1,5 @@
 import { Scene } from "phaser";
+import apiService from "../services/ApiService.js";
 
 export class MainMenu extends Scene {
   constructor() {
@@ -7,23 +8,17 @@ export class MainMenu extends Scene {
     this.isDropdownOpen = false;
     this.dropdownText = null;
     this.userToken = null;
-    this.businesses = [
-      "Diva Rides",
-      "TechFix Solutions",
-      "Bloom & Co Florist",
-      "FitLife Personal Training",
-      "Craftworks Furniture",
-      "GreenThumb Landscaping",
-    ];
+    this.businesses = []; // Will be populated from database
     this.dropdownElements = [];
+    this.databaseUsers = []; // Users from MongoDB
   }
 
-  create() {
+  async create() {
     this.add.image(0, 0, "background").setOrigin(0, 0);
     this.add.image(510, 260, "logo").setScale(0.55);
 
     const centerX = this.cameras.main.width / 2;
-    const startY = 500;
+    const startY = 480;
     const buttonSpacing = 65;
 
     // Add title for business canvas mode
@@ -38,25 +33,85 @@ export class MainMenu extends Scene {
       })
       .setOrigin(0.5);
 
-    // Add token input section
-    this.createTokenInput(centerX, startY);
+    // Load users from database
+    await this.loadUsersFromDatabase();
 
-    // Setup keyboard input
+    // Setup keyboard input (needs to be before createTokenInput)
     this.setupKeyboardInput();
 
-    // Create buttons
-    this.createButton(centerX, startY + buttonSpacing, "Enter", () => {
+    // Add token input section (after database loads)
+    this.createTokenInput(centerX, startY);
+
+    // Create buttons in a 2x2 grid layout
+    const firstLineY = startY + buttonSpacing;
+    const secondLineY = firstLineY + buttonSpacing + 10; // Extra space between rows
+
+    // First row: Enter and Instructions (side by side)
+    this.createButton(centerX - 180, firstLineY, "Enter", () => {
       this.validateAndEnterGame();
     });
 
+    this.createButton(centerX + 180, firstLineY, "Instructions", () => {
+      this.showInstructions();
+    });
+
+    // Second row: Create Profile and Edit Profile (side by side)
+    this.createButton(centerX - 180, secondLineY, "Create Profile", () => {
+      // Call global function from simple-profile.js
+      if (window.showCreateForm) {
+        window.showCreateForm();
+      } else {
+        console.error('showCreateForm function not found');
+      }
+    });
+
     this.createButton(
-      centerX,
-      startY + buttonSpacing * 2,
-      "Instructions",
+      centerX + 180,
+      secondLineY,
+      "Edit Profile",
       () => {
-        this.showInstructions();
+        this.showEditProfile();
       }
     );
+
+    // Expose refresh function globally for the form
+    window.refreshBusinessDropdown = () => {
+      this.loadUsersFromDatabase();
+    };
+  }
+
+  async loadUsersFromDatabase() {
+    try {
+      console.log("Loading users from database...");
+      this.databaseUsers = await apiService.getAllBusinessUsers();
+      console.log("Loaded database users:", this.databaseUsers);
+
+      // If we have database users, use them
+      if (this.databaseUsers && this.databaseUsers.length > 0) {
+        this.businesses = this.databaseUsers.map(user => user.business_name);
+        console.log("Updated businesses list:", this.businesses);
+
+        // Update dropdown if it's currently showing
+        if (this.dropdownText) {
+          const currentSelection = this.businesses[this.selectedBusinessIndex];
+          this.dropdownText.setText(currentSelection || "Select a business...");
+        }
+      } else {
+        // No users in database yet - show helpful message
+        console.log("No users found in database. Please create a profile first.");
+        this.businesses = [];
+        if (this.dropdownText) {
+          this.dropdownText.setText("No profiles - Create one!");
+        }
+      }
+    } catch (error) {
+      console.error("Error loading users from database:", error);
+      // Fall back to empty list
+      this.businesses = [];
+      if (this.dropdownText) {
+        this.dropdownText.setText("Error loading - Try again");
+      }
+    }
   }
 
   createTokenInput(centerX, y) {
@@ -100,11 +155,12 @@ export class MainMenu extends Scene {
     );
 
     // Create dropdown text
+    const dropdownValue = this.businesses[this.selectedBusinessIndex] || "Loading...";
     this.dropdownText = this.add
       .text(
         centerX - width / 2 + 15,
         y,
-        this.businesses[this.selectedBusinessIndex],
+        dropdownValue,
         {
           fontSize: "16px",
           fontFamily: "Arial",
@@ -293,12 +349,52 @@ export class MainMenu extends Scene {
     });
   }
 
-  validateAndEnterGame() {
-    const selectedBusiness = this.businesses[this.selectedBusinessIndex];
+  showEditProfile() {
+    if (!this.databaseUsers || this.databaseUsers.length === 0) {
+      this.showMessage("No profiles to edit. Create a profile first.", "#ff0000");
+      return;
+    }
 
-    this.registry.set("gameMode", "business");
-    this.registry.set("userToken", selectedBusiness);
-    this.scene.start("Game");
+    // Show selection UI or use the currently selected one
+    const selectedBusiness = this.businesses[this.selectedBusinessIndex];
+    if (!selectedBusiness) {
+      this.showMessage("Please select a profile to edit from the dropdown.", "#ff0000");
+      return;
+    }
+
+    const user = this.databaseUsers.find(u => u.business_name === selectedBusiness);
+    if (user && window.showEditForm) {
+      window.showEditForm(user.token);
+    } else {
+      this.showMessage("Selected profile not found in database.", "#ff0000");
+    }
+  }
+
+  validateAndEnterGame() {
+    if (!this.businesses || this.businesses.length === 0) {
+      this.showMessage("No profiles available. Create a profile first.", "#ff0000");
+      return;
+    }
+
+    const selectedBusiness = this.businesses[this.selectedBusinessIndex];
+    if (!selectedBusiness) {
+      this.showMessage("Please select a business from the dropdown.", "#ff0000");
+      return;
+    }
+
+    // Find the user in database to get their token
+    const user = this.databaseUsers.find(u => u.business_name === selectedBusiness);
+
+    if (user && user.token) {
+      this.registry.set("gameMode", "business");
+      this.registry.set("userToken", user.token);
+      this.scene.start("Game");
+    } else {
+      // Fallback to old behavior
+      this.registry.set("gameMode", "business");
+      this.registry.set("userToken", selectedBusiness);
+      this.scene.start("Game");
+    }
   }
 
   showMessage(text, color = "#ffffff") {

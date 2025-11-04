@@ -1,17 +1,56 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="./favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css" />
     <title>Phaser - Template</title>
-</head>
+  </head>
 
-<body>
+  <body>
     <div id="app">
-        <div id="game-container"></div>
+      <div id="game-container"></div>
     </div>
-    <!-- <script type="module" src="src/main.js"></script> -->
-</body>
+    <script src="./bundle.min.js"></script>
+    <script src="./simple-profile.js"></script>
+    <div id="client-form-container" class="form-overlay" style="display: none">
+      <form id="client-form">
+        <h3 id="form-title">Create New Client Profile</h3>
+
+        <label for="token">Token (Unique ID):</label>
+        <input type="text" id="token" name="token" required />
+
+        <label for="owner_name">Owner Name:</label>
+        <input type="text" id="owner_name" name="owner_name" required />
+
+        <label for="business_name">Business Name:</label>
+        <input type="text" id="business_name" name="business_name" required />
+
+        <label for="sector">Sector:</label>
+        <input type="text" id="sector" name="sector" />
+
+        <label for="business_type">Business Type:</label>
+        <input type="text" id="business_type" name="business_type" />
+
+        <label for="size">Size:</label>
+        <input type="text" id="size" name="size" />
+
+        <label for="challenges">Challenges (comma-separated):</label>
+        <textarea id="challenges" name="challenges" rows="3"></textarea>
+
+        <label for="goals">Goals (comma-separated):</label>
+        <textarea id="goals" name="goals" rows="3"></textarea>
+
+        <label for="current_focus">Current Focus:</label>
+        <textarea id="current_focus" name="current_focus" rows="3"></textarea>
+
+        <div class="form-buttons">
+          <button type="submit" id="form-submit-btn">Create Profile</button>
+          <button type="button" id="form-cancel-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+    <script src="./simple-profile.js"></script>
+  </body>
 </html>

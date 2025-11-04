@@ -6,7 +6,21 @@ export class Preloader extends Scene {
   }
 
   preload() {
+    console.log('=== PRELOADER PRELOAD() STARTING ===');
     this.load.setPath("assets");
+
+    // Progress callback
+    this.load.on('progress', (value) => {
+      console.log('Loading progress:', Math.round(value * 100) + '%');
+    });
+
+    this.load.on('complete', () => {
+      console.log('=== PRELOAD COMPLETE ===');
+    });
+
+    this.load.on('loaderror', (file) => {
+      console.error('Failed to load file:', file.key, file.src);
+    });
 
     // General assets
     this.load.image("background", "BMC.jpg");
@@ -89,6 +103,7 @@ export class Preloader extends Scene {
   }
 
   create() {
+    console.log('=== PRELOADER CREATE() STARTING ===');
     this.scene.start("MainMenu");
   }
 }

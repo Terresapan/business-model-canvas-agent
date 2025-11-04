@@ -3,6 +3,9 @@ import { MainMenu } from './scenes/MainMenu';
 import { Preloader } from './scenes/Preloader';
 import { PauseMenu } from './scenes/PauseMenu';
 
+console.log('=== MAIN.JS LOADING ===');
+console.log('Phaser version:', Phaser.VERSION);
+
 const config = {
     type: Phaser.AUTO,
     width: 1024,
@@ -26,4 +29,8 @@ const config = {
     },
 };
 
-export default new Phaser.Game(config);
+console.log('Creating Phaser game with config:', config);
+const game = new Phaser.Game(config);
+console.log('Phaser game created:', game);
+
+export default game;

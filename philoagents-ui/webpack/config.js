@@ -45,7 +45,8 @@ module.exports = {
             "typeof FEATURE_SOUND": JSON.stringify(true)
         }),
         new HtmlWebpackPlugin({
-            template: "./index.html"
+            template: "./index.html",
+            inject: false  // Don't auto-inject scripts
         })
     ]
 };

@@ -66,12 +66,14 @@ module.exports = {
     }),
     new HtmlWebpackPlugin({
       template: "./index.html",
+      inject: false  // Don't auto-inject scripts
     }),
     new CopyPlugin({
       patterns: [
         { from: "public/assets", to: "assets" },
         { from: "public/favicon.png", to: "favicon.png" },
         { from: "public/style.css", to: "style.css" },
+        { from: "src/simple-profile.js", to: "simple-profile.js" },
       ],
     }),
   ],

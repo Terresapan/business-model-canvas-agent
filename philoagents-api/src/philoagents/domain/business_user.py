@@ -17,7 +17,7 @@ class BusinessUser(BaseModel):
         current_focus (str): What the business is currently focusing on.
     """
 
-    token: str = Field(description="Access token for this user profile")
+    token: str = Field(description="Access token for this user profile", min_length=1)
     owner_name: str = Field(description="Name of the business owner")
     business_name: str = Field(description="Name of the business")
     sector: str = Field(description="Industry sector")

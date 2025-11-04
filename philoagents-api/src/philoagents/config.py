@@ -13,17 +13,22 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str
     GROQ_LLM_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_LLM_MODEL_CONTEXT_SUMMARY: str = "llama-3.1-8b-instant"
-    
+
     # --- LangSmith Configuration ---
     LANGSMITH_API_KEY: str | None = Field(default=None)
+
+    # --- MongoDB Configuration ---
+    MONGODB_URI: str = "mongodb://philoagents:philoagents@local_dev_atlas:27017/?directConnection=true"
+    MONGODB_DB_NAME: str = "philoagents"
+    MONGODB_USER_COLLECTION: str = "business_users"
 
     # --- Agents Configuration ---
     TOTAL_MESSAGES_SUMMARY_TRIGGER: int = 14
     TOTAL_MESSAGES_AFTER_SUMMARY: int = 5
 
     # --- Paths Configuration ---
-    EVALUATION_DATASET_FILE_PATH: Path = Path("data/evaluation_dataset.json")
-    EXTRACTION_METADATA_FILE_PATH: Path = Path("data/extraction_metadata.json")
+    # EVALUATION_DATASET_FILE_PATH: Path = Path("data/evaluation_dataset.json")
+    # EXTRACTION_METADATA_FILE_PATH: Path = Path("data/extraction_metadata.json")
 
 
 settings = Settings() # type: ignore

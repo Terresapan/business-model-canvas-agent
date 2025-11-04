@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
-from typing import Optional
-
-from fastapi import FastAPI, HTTPException, Query
+from typing import List
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from opik.integrations.langchain import OpikTracer
 from pydantic import BaseModel
@@ -11,15 +10,33 @@ from philoagents.application.conversation_service.business_workflow_response imp
     get_business_streaming_response,
 )
 from philoagents.domain.business_expert_factory import BusinessExpertFactory
-from philoagents.domain.business_user_factory import BusinessUserFactory
+from philoagents.domain.business_user_factory import (
+    BusinessUserFactory,
+    DatabaseConnectionError,
+    DatabaseOperationError,
+    UserAlreadyExistsError,
+)
+from philoagents.domain.business_user import BusinessUser
 
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handles startup and shutdown events for the API."""
-    # Startup code (if any) goes here
+    # Initialize database connection and create indexes
+    try:
+        await BusinessUserFactory.create_collection_with_index()
+        print("✅ BusinessUserFactory initialized successfully")
+    except Exception as e:
+        print(f"❌ Failed to initialize BusinessUserFactory: {e}")
+        # You might want to fail startup if database is critical
+        # raise
     yield
+    # Cleanup on shutdown
+    try:
+        await BusinessUserFactory.close_connections()
+        print("🔌 BusinessUserFactory connections closed")
+    except Exception as e:
+        print(f"⚠️ Error closing database connections: {e}")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -49,10 +66,14 @@ async def business_chat(chat_message: BusinessChatMessage):
         # Get user context if token provided
         user_context = None
         if chat_message.user_token:
-            user_factory = BusinessUserFactory()
-            user = user_factory.get_user_by_token(chat_message.user_token)
-            if user:
-                user_context = user.dict()
+            try:
+                user_factory = BusinessUserFactory()
+                user = await user_factory.get_user_by_token(chat_message.user_token)
+                if user:
+                    user_context = user.model_dump()
+            except (DatabaseConnectionError, DatabaseOperationError) as e:
+                # Continue without user context if database issues occur
+                print(f"Warning: Could not retrieve user context: {e}")
 
         response, _ = await get_business_response(
             messages=chat_message.message,
@@ -101,10 +122,10 @@ async def validate_token(token: str = Query(...)):
     """Validate a business user token."""
     try:
         user_factory = BusinessUserFactory()
-        is_valid = user_factory.is_valid_token(token)
-        
+        is_valid = await user_factory.is_valid_token(token)
+
         if is_valid:
-            user = user_factory.get_user_by_token(token)
+            user = await user_factory.get_user_by_token(token)
             if user:
                 return {
                     "valid": True,
@@ -118,9 +139,164 @@ async def validate_token(token: str = Query(...)):
                 return {"valid": False}
         else:
             return {"valid": False}
+    except DatabaseConnectionError as e:
+        # Return false for validation failures instead of 500 error
+        return {"valid": False}
+    except DatabaseOperationError as e:
+        # Return false for validation failures instead of 500 error
+        return {"valid": False}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ---
+# --- NEW: FULL CRUD ENDPOINTS FOR BUSINESS USERS ---
+# ---
+
+# --- CREATE ---
+@app.post("/business/user", status_code=status.HTTP_201_CREATED)
+async def create_business_user(user: BusinessUser):
+    """Creates a new business user profile."""
+    try:
+        user_factory = BusinessUserFactory()
+        success = await user_factory.create_user(user)
+
+        if success:
+            return {
+                "status": "success",
+                "message": f"User '{user.business_name}' created.",
+                "token": user.token
+            }
+    except UserAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection failed. Please try again later."
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database operation failed. Please try again."
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- READ (All) ---
+@app.get("/business/users", response_model=List[BusinessUser])
+async def get_all_business_users():
+    """Get a list of all business user profiles."""
+    try:
+        user_factory = BusinessUserFactory()
+        users = await user_factory.get_all_users()
+        return users
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- READ (One) ---
+@app.get("/business/user/{token}", response_model=BusinessUser)
+async def get_business_user(token: str):
+    """Get a single business user profile by their token."""
+    try:
+        user_factory = BusinessUserFactory()
+        user = await user_factory.get_user_by_token(token)
+        if user:
+            return user
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with token '{token}' not found."
+            )
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection failed. Please try again later."
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database operation failed. Please try again."
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- UPDATE ---
+@app.put("/business/user/{token}")
+async def update_business_user(token: str, user: BusinessUser):
+    """Updates/Replaces a business user profile by their token."""
+    try:
+        user_factory = BusinessUserFactory()
+        
+        if token != user.token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token in URL does not match token in request body."
+            )
+
+        success = await user_factory.update_user(token, user)
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"User '{user.business_name}' (token: {token}) updated."
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with token '{token}' not found. No update performed."
+            )
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection failed. Please try again later."
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database operation failed. Please try again."
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- DELETE ---
+@app.delete("/business/user/{token}")
+async def delete_business_user(token: str):
+    """Deletes a business user profile by their token."""
+    try:
+        user_factory = BusinessUserFactory()
+        success = await user_factory.delete_user(token)
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"User with token '{token}' successfully deleted."
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with token '{token}' not found. No deletion performed."
+            )
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection failed. Please try again later."
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database operation failed. Please try again."
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+# ---
+# --- END OF CRUD ENDPOINTS ---
+# ---
 
 if __name__ == "__main__":
     import uvicorn

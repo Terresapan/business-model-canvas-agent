@@ -1,174 +1,372 @@
-from typing import Optional
+import logging
+import asyncio
+from typing import Optional, List
 from philoagents.domain.business_user import BusinessUser
+from philoagents.config import settings
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure
+import threading
 
-BUSINESS_USER_PROFILES = {
-    "Diva Rides": BusinessUser(
-        token="Diva Rides",
-        owner_name="Diana Walker",
-        business_name="Diva Rides",
-        sector="independent ride-sharing service",
-        business_type="a private, independent ride-sharing service. The owner, Diana, uses her personal SUVs to provide pre-scheduled and on-demand rides for cash, positioning her service as a more personal and often lower-cost alternative to platforms like Uber and Lyft",
-        size="Small (2 employees)",
-        challenges=[
-            "Inconsistent Customer Flow: The primary challenge is the lack of a steady, consistent stream of customers. Business can be busy in the mornings but then slow down for the rest of the day, making the income unreliable.", 
-            "Customer Acquisition:Relying on word-of-mouth and social media platforms like Nextdoor and Facebook has not generated a consistent enough 'traffic' of riders.",
-            "Low Profit Margins: To compete with Uber and Lyft, Diana keeps her prices low, which limits her profitability and makes it difficult to absorb operational costs like vehicle maintenance and fuel.",
-            "Resource Underutilization: The business owns two vehicles but lacks consistent drivers (the owner, her son, and her boyfriend are not always available), meaning the assets are not being used to their full potential.",
-        ],
-        goals=[
-            "Immediate Goal: To establish a consistent and predictable revenue stream that is sufficient to cover personal living expenses (like her mortgage) and the costs of running the business.", 
-            "Aspirational Goal: To scale the business by expanding her fleet to 4-6 newer vehicles and hiring a team of reliable drivers to work for her. She also envisions expanding into group transportation, such as providing transport for church trips.",
-        ],
-        current_focus="""
-        Based on the consultant's guidance, the immediate focus is to move from being a general taxi service to a specialized transportation provider by concentrating on the following:
-        1, Defining Target Customer Segments: Deeply analyzing and focusing on her most valuable customer groups, specifically: 1) working professionals who need reliable daily commutes and 2) elderly individuals who need transport for appointments, shopping, and church.
-        2, Developing a Unique Value Proposition: Creating a clear selling point that differentiates her from Uber/Lyft. This includes offering highly reliable, pre-scheduled, and personalized service (e.g., a subscription model for a weekly churchgoer) that larger platforms cannot match.
-        3, Building Stronger Customer Relationships: Shifting the model from one-off rides to building loyal, long-term relationships that ensure repeat business.
-        4, Identifying Key Partners: Exploring partnerships with organizations like churches or local businesses that can provide a consistent stream of customers from her target segments."""
-    ),
-    "TechFix Solutions": BusinessUser(
-        token="TechFix Solutions",
-        owner_name="Marcus Chen", 
-        business_name="TechFix Solutions",
-        sector="Technology Services",
-        business_type="IT Repair Shop",
-        size="Small (3 employees)",
-        challenges=[
-            "Competition from big box stores",
-            "Customer acquisition costs",
-            "Unpredictable revenue streams"
-        ],
-        goals=[
-            "Develop recurring revenue streams",
-            "Expand service offerings", 
-            "Build corporate client base"
-        ],
-        current_focus="Exploring subscription-based support models and managed IT services"
-    ),
-    "Bloom & Co Florist": BusinessUser(
-        token="Bloom & Co Florist",
-        owner_name="Isabella Rodriguez",
-        business_name="Bloom & Co Florist",
-        sector="Retail & Events",
-        business_type="Boutique Florist",
-        size="Small (4 employees)",
-        challenges=[
-            "Inventory management with perishables",
-            "Wedding season dependency", 
-            "Rising wholesale flower costs"
-        ],
-        goals=[
-            "Diversify beyond weddings",
-            "Create subscription flower service",
-            "Expand corporate partnerships"
-        ],
-        current_focus="Developing year-round revenue streams and reducing waste through better demand forecasting"
-    ),
-    "FitLife Personal Training": BusinessUser(
-        token="FitLife Personal Training",
-        owner_name="David Thompson",
-        business_name="FitLife Personal Training",
-        sector="Health & Fitness",
-        business_type="Personal Training Studio",
-        size="Small (6 trainers)",
-        challenges=[
-            "Client retention after initial goals",
-            "Limited physical space for growth",
-            "Seasonal membership fluctuations"
-        ],
-        goals=[
-            "Launch online training programs",
-            "Increase average client lifetime value",
-            "Develop corporate wellness partnerships"
-        ],
-        current_focus="Creating hybrid online/offline training packages and building stronger client relationships"
-    ),
-    "Craftworks Furniture": BusinessUser(
-        token="Craftworks Furniture",
-        owner_name="Elena Vasquez",
-        business_name="Craftworks Furniture",
-        sector="Manufacturing & Retail",
-        business_type="Custom Furniture Workshop",
-        size="Medium (12 employees)",
-        challenges=[
-            "Long production lead times",
-            "Raw material cost volatility",
-            "Scaling custom work processes"
-        ],
-        goals=[
-            "Streamline production workflow",
-            "Develop semi-custom product lines",
-            "Expand into commercial markets"
-        ],
-        current_focus="Balancing custom craftsmanship with scalable business processes and exploring new revenue channels"
-    ),
-    "GreenThumb Landscaping": BusinessUser(
-        token="GreenThumb Landscaping",
-        owner_name="James Wilson",
-        business_name="GreenThumb Landscaping",
-        sector="Home & Garden Services", 
-        business_type="Landscaping Company",
-        size="Medium (15 employees)",
-        challenges=[
-            "Weather-dependent operations",
-            "Seasonal workforce management",
-            "Equipment maintenance costs"
-        ],
-        goals=[
-            "Develop year-round service offerings",
-            "Increase commercial contract revenue",
-            "Improve crew efficiency and scheduling"
-        ],
-        current_focus="Creating maintenance contracts and exploring indoor plant services to reduce seasonal dependency"
-    )
-}
+# Configure logging
+logger = logging.getLogger(__name__)
 
-VALID_TOKENS = list(BUSINESS_USER_PROFILES.keys())
+# Custom database exceptions
+class DatabaseConnectionError(Exception):
+    """Exception raised when database connection fails."""
+    pass
 
+class DatabaseOperationError(Exception):
+    """Exception raised when a database operation fails."""
+    pass
+
+class UserAlreadyExistsError(Exception):
+    """Exception raised when trying to create a user that already exists."""
+    
+    def __init__(self, token: str):
+        self.token = token
+        self.message = f"User with token '{token}' already exists."
+        super().__init__(self.message)
+
+# --- REMOVED HARDCODED DATA ---
 
 class BusinessUserFactory:
-    @staticmethod
-    def get_user_by_token(token: str) -> Optional[BusinessUser]:
-        """Retrieves a business user profile by their access token.
+    _client: Optional[AsyncIOMotorClient] = None
+    _collection = None
+    _lock = threading.Lock()
+    _index_created = False
 
+    @classmethod
+    async def create_collection_with_index(cls):
+        """Creates collection and ensures unique index exists (called once at startup)."""
+        if cls._index_created:
+            return
+            
+        with cls._lock:
+            if cls._index_created:  # Double-check pattern
+                return
+                
+            try:
+                if cls._client is None:
+                    cls._client = AsyncIOMotorClient(
+                        settings.MONGODB_URI,
+                        serverSelectionTimeoutMS=5000  # 5 second timeout
+                    )
+                    
+                    # Test connection
+                    await cls._client.admin.command('ping')
+                    logger.info("Successfully connected to MongoDB")
+                
+                db = cls._client[settings.MONGODB_DB_NAME]
+                cls._collection = db[settings.MONGODB_USER_COLLECTION]
+                
+                # Create unique index only once
+                await cls._collection.create_index("token", unique=True)
+                cls._index_created = True
+                logger.info("MongoDB collection and index initialized successfully")
+                
+            except ConnectionFailure as e:
+                logger.error(f"Failed to connect to MongoDB: {e}")
+                raise DatabaseConnectionError(f"Unable to connect to database: {e}") from e
+            except Exception as e:
+                logger.error(f"Failed to initialize database: {e}")
+                raise DatabaseOperationError(f"Database initialization failed: {e}") from e
+
+    def _get_collection(self):
+        """Returns the database collection (after initialization)."""
+        if self._collection is None:
+            raise DatabaseConnectionError("Database not initialized. Call create_collection_with_index() first.")
+        return self._collection
+
+    # --- READ (One) ---
+    async def get_user_by_token(self, token: str) -> Optional[BusinessUser]:
+        """
+        Retrieves a business user profile from MongoDB by their access token.
+        
         Args:
-            token (str): Access token for the user profile
-
+            token: The unique access token for the user
+            
         Returns:
-            Optional[BusinessUser]: Business user profile if token is valid, None otherwise
+            BusinessUser object if found, None otherwise
+            
+        Raises:
+            DatabaseOperationError: If database operation fails
         """
-        return BUSINESS_USER_PROFILES.get(token)
+        if not token or not isinstance(token, str):
+            logger.warning(f"Invalid token provided: {token}")
+            return None
+            
+        try:
+            collection = self._get_collection()
+            user_data = await collection.find_one({"token": token})
+            
+            if user_data:
+                # Remove MongoDB _id field before creating BusinessUser
+                user_data.pop('_id', None)
+                return BusinessUser(**user_data)
+            return None
+            
+        except OperationFailure as e:
+            logger.error(f"Database operation failed while fetching user with token '{token}': {e}")
+            raise DatabaseOperationError(f"Failed to retrieve user: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error while fetching user with token '{token}': {e}")
+            raise DatabaseOperationError(f"Unexpected error retrieving user: {e}") from e
 
-    @staticmethod
-    def is_valid_token(token: str) -> bool:
-        """Checks if a token is valid.
+    # --- READ (All) ---
+    async def get_all_users(self) -> List[BusinessUser]:
+        """
+        Retrieves all business user profiles from the database.
+        
+        Returns:
+            List of BusinessUser objects
+            
+        Raises:
+            DatabaseOperationError: If database operation fails
+        """
+        try:
+            collection = self._get_collection()
+            users = []
+            cursor = collection.find({})
+            
+            async for user_data in cursor:
+                # Remove MongoDB _id field before creating BusinessUser
+                user_data.pop('_id', None)
+                users.append(BusinessUser(**user_data))
+                
+            logger.info(f"Retrieved {len(users)} users from database")
+            return users
+            
+        except OperationFailure as e:
+            logger.error(f"Database operation failed while fetching all users: {e}")
+            raise DatabaseOperationError(f"Failed to retrieve users: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error while fetching all users: {e}")
+            raise DatabaseOperationError(f"Unexpected error retrieving users: {e}") from e
 
+    # --- CREATE ---
+    async def create_user(self, user: BusinessUser) -> bool:
+        """
+        Inserts a new business user into the database.
+        
         Args:
-            token (str): Token to validate
-
+            user: BusinessUser object to create
+            
         Returns:
-            bool: True if token is valid, False otherwise
+            True if successful
+            
+        Raises:
+            UserAlreadyExistsError: If user with same token already exists
+            DatabaseOperationError: If database operation fails
         """
-        return token in VALID_TOKENS
+        if not user or not isinstance(user, BusinessUser):
+            raise ValueError("Invalid BusinessUser object provided")
+            
+        if not hasattr(user, 'token') or not user.token:
+            raise ValueError("User must have a valid token")
+            
+        try:
+            collection = self._get_collection()
+            user_document = user.model_dump()
+            
+            await collection.insert_one(user_document)
+            logger.info(f"Successfully created user with token '{user.token}'")
+            return True
+            
+        except DuplicateKeyError:
+            error_msg = f"User with token '{user.token}' already exists"
+            logger.warning(error_msg)
+            raise UserAlreadyExistsError(user.token) from None
+        except OperationFailure as e:
+            error_msg = f"Database operation failed while creating user '{user.token}': {e}"
+            logger.error(error_msg)
+            raise DatabaseOperationError(error_msg) from e
+        except Exception as e:
+            error_msg = f"Unexpected error while creating user '{user.token}': {e}"
+            logger.error(error_msg)
+            raise DatabaseOperationError(error_msg) from e
 
-    @staticmethod
-    def get_all_tokens() -> list[str]:
-        """Returns a list of all valid tokens.
-
+    # --- UPDATE ---
+    async def update_user(self, token: str, user_update_data: BusinessUser) -> bool:
+        """
+        Replaces an existing user document with new data.
+        
+        Args:
+            token: The token of the user to update
+            user_update_data: New BusinessUser data
+            
         Returns:
-            list[str]: List of all valid access tokens
+            True if a document was successfully updated
+            
+        Raises:
+            DatabaseOperationError: If database operation fails
         """
-        return VALID_TOKENS
+        if not token or not isinstance(token, str):
+            raise ValueError("Invalid token provided")
+            
+        if not user_update_data or not isinstance(user_update_data, BusinessUser):
+            raise ValueError("Invalid BusinessUser object provided")
+            
+        try:
+            collection = self._get_collection()
+            result = await collection.replace_one(
+                {"token": token},
+                user_update_data.model_dump()
+            )
+            
+            if result.matched_count > 0:
+                logger.info(f"Successfully updated user with token '{token}'")
+            else:
+                logger.warning(f"No user found with token '{token}' to update")
+                
+            return result.matched_count > 0
+            
+        except OperationFailure as e:
+            error_msg = f"Database operation failed while updating user '{token}': {e}"
+            logger.error(error_msg)
+            raise DatabaseOperationError(error_msg) from e
+        except Exception as e:
+            error_msg = f"Unexpected error while updating user '{token}': {e}"
+            logger.error(error_msg)
+            raise DatabaseOperationError(error_msg) from e
+
+    # --- DELETE ---
+    async def delete_user(self, token: str) -> bool:
+        """
+        Deletes a user document from the database by its token.
+        
+        Args:
+            token: The token of the user to delete
+            
+        Returns:
+            True if a document was deleted
+            
+        Raises:
+            DatabaseOperationError: If database operation fails
+        """
+        if not token or not isinstance(token, str):
+            raise ValueError("Invalid token provided")
+            
+        try:
+            collection = self._get_collection()
+            result = await collection.delete_one({"token": token})
+            
+            if result.deleted_count > 0:
+                logger.info(f"Successfully deleted user with token '{token}'")
+            else:
+                logger.warning(f"No user found with token '{token}' to delete")
+                
+            return result.deleted_count > 0
+            
+        except OperationFailure as e:
+            error_msg = f"Database operation failed while deleting user '{token}': {e}"
+            logger.error(error_msg)
+            raise DatabaseOperationError(error_msg) from e
+        except Exception as e:
+            error_msg = f"Unexpected error while deleting user '{token}': {e}"
+            logger.error(error_msg)
+            raise DatabaseOperationError(error_msg) from e
+    
+    # --- Utility Methods ---
+    
+    async def is_valid_token(self, token: str) -> bool:
+        """
+        Checks if a token exists in the database.
+        
+        Args:
+            token: The token to validate
+            
+        Returns:
+            True if token exists, False otherwise
+            
+        Raises:
+            DatabaseOperationError: If database operation fails
+        """
+        if not token or not isinstance(token, str):
+            return False
+            
+        try:
+            collection = self._get_collection()
+            count = await collection.count_documents({"token": token}, limit=1)
+            return count > 0
+            
+        except OperationFailure as e:
+            logger.error(f"Database operation failed while validating token '{token}': {e}")
+            raise DatabaseOperationError(f"Failed to validate token: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error while validating token '{token}': {e}")
+            raise DatabaseOperationError(f"Unexpected error validating token: {e}") from e
+
+    async def get_all_tokens(self) -> List[str]:
+        """
+        Returns a list of all valid tokens from the database.
+        
+        Returns:
+            List of token strings
+            
+        Raises:
+            DatabaseOperationError: If database operation fails
+        """
+        try:
+            collection = self._get_collection()
+            cursor = collection.find({}, {"token": 1, "_id": 0})
+            tokens = []
+            
+            async for doc in cursor:
+                token = doc.get("token")
+                if token:
+                    tokens.append(token)
+                    
+            return tokens
+            
+        except OperationFailure as e:
+            logger.error(f"Database operation failed while fetching tokens: {e}")
+            raise DatabaseOperationError(f"Failed to retrieve tokens: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error while fetching tokens: {e}")
+            raise DatabaseOperationError(f"Unexpected error retrieving tokens: {e}") from e
+
+    async def get_users_count(self) -> int:
+        """
+        Returns the total count of users in the database.
+        
+        Returns:
+            Total number of users
+            
+        Raises:
+            DatabaseOperationError: If database operation fails
+        """
+        try:
+            collection = self._get_collection()
+            count = await collection.count_documents({})
+            return count
+            
+        except OperationFailure as e:
+            logger.error(f"Database operation failed while counting users: {e}")
+            raise DatabaseOperationError(f"Failed to count users: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error while counting users: {e}")
+            raise DatabaseOperationError(f"Unexpected error counting users: {e}") from e
+
+    @classmethod
+    async def close_connections(cls):
+        """Properly close database connections (call on shutdown)."""
+        if cls._client:
+            cls._client.close()
+            cls._client = None
+            cls._collection = None
+            cls._index_created = False
+            logger.info("MongoDB connections closed")
 
     @staticmethod
     def format_user_context(user: Optional[BusinessUser]) -> str:
-        """Formats user context for use in prompts.
-
+        """
+        Formats user context for use in prompts.
+        
         Args:
-            user (Optional[BusinessUser]): Business user profile
-
+            user: Optional BusinessUser object
+            
         Returns:
-            str: Formatted context string for prompts
+            Formatted context string
         """
         if not user:
             return "You're speaking with a general business owner seeking guidance."

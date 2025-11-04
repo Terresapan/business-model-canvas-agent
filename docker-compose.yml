@@ -30,15 +30,11 @@ services:
     build:
       context: ./philoagents-ui
       dockerfile: Dockerfile
-      args:
-        - API_URL=http://localhost:8000
     ports:
       - "8080:8080"
     # volumes:
     #   - ./philoagents-ui:/app
     #   - /app/node_modules
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       - api
     networks:

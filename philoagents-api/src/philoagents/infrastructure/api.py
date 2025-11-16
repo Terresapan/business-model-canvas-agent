@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"❌ Failed to initialize BusinessUserFactory: {e}")
         # You might want to fail startup if database is critical
-        # raise
+        raise
     yield
     # Cleanup on shutdown
     try:
@@ -175,6 +175,14 @@ async def create_business_user(user: BusinessUser):
                 "message": f"User '{user.business_name}' created.",
                 "token": user.token
             }
+        else:
+            # --- FIX #2: Add this 'else' block ---
+            # This stops the "fake success" by raising a
+            # proper error if the write fails silently.
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database write operation failed, but no exception was raised."
+            )
     except UserAlreadyExistsError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

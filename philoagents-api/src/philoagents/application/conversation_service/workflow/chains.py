@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_groq import ChatGroq
+# from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # from philoagents.application.conversation_service.workflow.tools import tools
 from philoagents.config import settings
@@ -10,10 +11,10 @@ from philoagents.domain.prompts import (
 )
 
 
-def get_chat_model(temperature: float = 0.7, model_name: str = settings.GROQ_LLM_MODEL) -> ChatGroq:
-    return ChatGroq(
-        api_key=settings.GROQ_API_KEY,
-        model_name=model_name, # type: ignore
+def get_chat_model(temperature: float = 0.7, model_name: str = settings.GEMINI_LLM_MODEL) -> ChatGoogleGenerativeAI:
+    return ChatGoogleGenerativeAI(
+        api_key=settings.GEMINI_API_KEY,
+        model=model_name, # type: ignore
         temperature=temperature,
     )
 
@@ -37,7 +38,7 @@ def get_business_expert_response_chain():
 
 def get_business_conversation_summary_chain(summary: str = ""):
     """Summary chain for business expert conversations."""
-    model = get_chat_model(model_name=settings.GROQ_LLM_MODEL_CONTEXT_SUMMARY) # type: ignore
+    model = get_chat_model(model_name=settings.GEMINI_LLM_MODEL_CONTEXT_SUMMARY) # type: ignore
 
     summary_message = EXTEND_SUMMARY_PROMPT if summary else SUMMARY_PROMPT
 

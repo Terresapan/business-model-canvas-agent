@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     GROQ_LLM_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_LLM_MODEL_CONTEXT_SUMMARY: str = "llama-3.1-8b-instant"
 
+    # --- GEMINI Configuration ---
+    GEMINI_API_KEY: str
+    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
+    GEMINI_LLM_MODEL_CONTEXT_SUMMARY: str = "gemini-2.5-flash-lite"
+
     # --- LangSmith Configuration ---
     LANGSMITH_API_KEY: str | None = Field(default=None)
 

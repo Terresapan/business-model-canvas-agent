@@ -43,12 +43,21 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
+    # allow_origins=["https://philoagents-ui-635390037922.us-central1.run.app"],
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# --- THIS IS THE NEW HEALTH CHECK ENDPOINT ---
+#
+@app.get("/")
+async def health_check():
+    """A simple health check endpoint that Cloud Run can ping."""
+    return {"status": "ok"}
+#
+# --- END OF NEW SECTION ---
 
 class BusinessChatMessage(BaseModel):
     message: str

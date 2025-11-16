@@ -33,8 +33,13 @@ steps:
       - "--port"
       - "8000"
       - "--set-secrets=LANGSMITH_API_KEY=LANGSMITH_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,MONGODB_URI=MONGODB_URI_PROD:latest"
+
+# 'images:', 'options:', and 'substitutions:' must be at the root level (no indentation).
+images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest"
+
 options:
   logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _PROJECT_NUMBER: "635390037922" # Your Google Cloud Project Number

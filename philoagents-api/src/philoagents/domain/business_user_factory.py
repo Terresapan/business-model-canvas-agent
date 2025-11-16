@@ -168,9 +168,19 @@ class BusinessUserFactory:
             collection = self._get_collection()
             user_document = user.model_dump()
             
-            await collection.insert_one(user_document)
-            logger.info(f"Successfully created user with token '{user.token}'")
-            return True
+            # --- THIS IS THE FIX ---
+            # 1. Store the result of the insert operation
+            result = await collection.insert_one(user_document)
+            
+            # 2. Check if the insert operation returned a valid ID
+            if result.inserted_id:
+                logger.info(f"Successfully created user with token '{user.token}'")
+                return True
+            else:
+                # 3. If not, the write failed silently. Raise an error.
+                logger.error(f"User '{user.token}' insert_one reported no inserted_id.")
+                raise DatabaseOperationError("Write operation failed to return an ID.")
+            # --- END OF FIX ---
             
         except DuplicateKeyError:
             error_msg = f"User with token '{user.token}' already exists"

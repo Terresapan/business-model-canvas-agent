@@ -25,6 +25,8 @@ services:
       - ./philoagents-api/.env
     networks:
       - philoagents-network
+    volumes: # <--- ADD THIS SECTION
+      - ./philoagents-api/src/philoagents:/app/philoagents
   ui:
     container_name: philoagents-ui
     build:
@@ -32,9 +34,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    # volumes:
-    #   - ./philoagents-ui:/app
-    #   - /app/node_modules
+    volumes: # <--- UNCOMMENT THESE
+      - ./philoagents-ui:/app
+      - /app/node_modules
     depends_on:
       - api
     networks:

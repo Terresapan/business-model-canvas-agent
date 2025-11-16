@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     )
 
     # --- GROQ Configuration ---
-    GROQ_API_KEY: str
-    GROQ_LLM_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_LLM_MODEL_CONTEXT_SUMMARY: str = "llama-3.1-8b-instant"
+    # GROQ_API_KEY: str
+    # GROQ_LLM_MODEL: str = "llama-3.3-70b-versatile"
+    # GROQ_LLM_MODEL_CONTEXT_SUMMARY: str = "llama-3.1-8b-instant"
 
     # --- GEMINI Configuration ---
     GEMINI_API_KEY: str
@@ -21,9 +21,13 @@ class Settings(BaseSettings):
 
     # --- LangSmith Configuration ---
     LANGSMITH_API_KEY: str | None = Field(default=None)
+    LANGSMITH_TRACING: bool = True
+    LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+    LANGSMITH_PROJECT: str = "Business Model Canvas"
+
 
     # --- MongoDB Configuration ---
-    MONGODB_URI: str = "mongodb://philoagents:philoagents@local_dev_atlas:27017/?directConnection=true"
+    MONGODB_URI: str 
     MONGODB_DB_NAME: str = "philoagents"
     MONGODB_USER_COLLECTION: str = "business_users"
 

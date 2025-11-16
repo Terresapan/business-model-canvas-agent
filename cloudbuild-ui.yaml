@@ -2,9 +2,10 @@
 steps:
   # Build the Docker image for philoagents-ui
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      [
+    args: [
         "build",
+        "-f",
+        "Dockerfile.prod", # <--- ADD THIS LINE
         "--build-arg",
         "API_URL=${_API_URL}",
         "-t",

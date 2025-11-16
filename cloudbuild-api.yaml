@@ -1,9 +1,10 @@
 # cloudbuild-api.yaml
 steps:
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      [
+    args: [
         "build",
+        "-f",
+        "Dockerfile.prod", # Use the production Dockerfile
         "-t",
         "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest",
         ".",
@@ -31,8 +32,7 @@ steps:
       - "--allow-unauthenticated"
       - "--port"
       - "8000"
-      - "--set-secrets=GROQ_API_KEY=GROQ_API_KEY:latest,LANGSMITH_API_KEY=LANGSMITH_API_KEY:latest,LANGSMITH_TRACING=LANGSMITH_TRACING:latest,LANGSMITH_ENDPOINT=LANGSMITH_ENDPOINT:latest,LANGSMITH_PROJECT=LANGSMITH_PROJECT:latest"
-images:
+      - "--set-secrets=LANGSMITH_API_KEY=LANGSMITH_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,MONGODB_URI=MONGODB_URI_PROD:latest"
   - "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-api:latest"
 options:
   logging: CLOUD_LOGGING_ONLY

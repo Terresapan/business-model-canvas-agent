@@ -6,8 +6,7 @@ steps:
         "build",
         "-f",
         "Dockerfile.prod", # <--- ADD THIS LINE
-        "--build-arg",
-        "API_URL=${_API_URL}",
+        "--build-arg", "API_URL=${_API_URL}",
         "-t",
         "us-central1-docker.pkg.dev/$PROJECT_ID/philoagents-repo/philoagents-ui:latest",
         ".",
@@ -43,3 +42,4 @@ options:
   logging: CLOUD_LOGGING_ONLY
 substitutions:
   _API_URL: "https://philoagents-api-635390037922.us-central1.run.app"
+

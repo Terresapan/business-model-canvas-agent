@@ -21,7 +21,7 @@ COPY pyproject.toml README.md ./
 RUN uv venv
 
 # 3. Install the project and all its dependencies from pyproject.toml.
-RUN uv pip install . --no-dev
+RUN uv pip install . --group main
 
 # 4. Copy the application source code into the container.
 COPY src/philoagents philoagents/

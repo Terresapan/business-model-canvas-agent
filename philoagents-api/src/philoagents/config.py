@@ -4,10 +4,14 @@ import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Determine the environment based on the presence of a Cloud Run-specific variable
+is_production = "K_SERVICE" in os.environ
+ENV = "production" if is_production else "local"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env" if os.getenv("ENV") == "local" else None,
+        env_file=".env" if ENV == "local" else None,
         extra="ignore", 
         env_file_encoding="utf-8"
     )

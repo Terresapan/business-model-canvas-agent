@@ -26,6 +26,9 @@ RUN uv pip install .
 # 4. Copy the application source code into the container.
 COPY src/philoagents philoagents/
 
+# Add the virtual environment's bin directory to the PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
 # 5. This is the production-ready command.
 # It runs the fast 'uvicorn' server without the slow '--reload' flag.
 # Cloud Run will automatically pass in the correct --port.

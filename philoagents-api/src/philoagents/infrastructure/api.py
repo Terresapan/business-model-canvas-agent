@@ -18,6 +18,17 @@ from philoagents.domain.business_user_factory import (
 )
 from philoagents.domain.business_user import BusinessUser
 
+import logging
+from philoagents.config import settings
+from urllib.parse import urlparse
+
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Log MongoDB host to verify correct URI
+uri_host = urlparse(settings.MONGODB_URI).netloc
+logging.info(f"MongoDB host in use: {uri_host}")
 
 
 @asynccontextmanager

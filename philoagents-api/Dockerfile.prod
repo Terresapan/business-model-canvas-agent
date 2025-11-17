@@ -1,12 +1,15 @@
 #
-# --- THIS IS YOUR PRODUCTION DOCKERFILE ---
-# --- Save as: philoagents-api/Dockerfile.prod ---
+# --- Production Dockerfile ---
+# --- philoagents-api/Dockerfile.prod ---
 #
 
 FROM python:3.11-slim
 
 # Install uv.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory.
 WORKDIR /app
@@ -18,13 +21,15 @@ COPY pyproject.toml README.md ./
 RUN uv venv
 
 # 3. Install the project and all its dependencies from pyproject.toml.
-# This command correctly installs "extras" (like [standard]).
-RUN uv pip install .
+RUN uv pip install . --no-dev
 
 # 4. Copy the application source code into the container.
 COPY src/philoagents philoagents/
 
+# Cloud Run expects the server to listen on $PORT
+ENV PORT=8080
+
 # 5. This is the production-ready command.
 # It runs the fast 'uvicorn' server without the slow '--reload' flag.
 # Cloud Run will automatically pass in the correct --port (8080).
-CMD ["/app/.venv/bin/fastapi", "run", "philoagents/infrastructure/api.py", "--host", "0.0.0.0"]
+CMD ["/app/.venv/bin/uvicorn", "philoagents.infrastructure.api:app", "--host", "0.0.0.0", "--port", "8080"]

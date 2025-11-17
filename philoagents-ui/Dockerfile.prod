@@ -1,45 +1,38 @@
-#  --- Build Stage ---
-# Use a Node.js image with more tools for building
+#
+# --- Build Stage ---
+#
 FROM node:18 AS builder
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package manifests first – improves caching
 COPY package*.json ./
-RUN npm install
+RUN npm install --production
 
-# Copy all project files for the build
-# The .dockerignore file will exclude node_modules and other unnecessary files
+# Copy the rest of the code
 COPY . .
 
-# Accept API_URL as a build argument
+# Accept API_URL as build argument
 ARG API_URL
 ENV API_URL=$API_URL
 
-# Build the application for production
-# This command runs your webpack/config.prod.js
+# Build the production bundle (to /dist)
 RUN npm run build
 
-# --- Production Stage ---
-# Use a minimal Nginx or Alpine Node.js image for the final serving environment
-# Here we'll use node:18-alpine again, but only install 'serve' globally.
-FROM node:18-alpine
 
-# Install 'serve' globally to serve static files
-RUN npm install -g serve
+#
+# --- Production Stage (Nginx) ---
+#
+FROM nginx:1.27-alpine
 
-WORKDIR /app
+# Copy compiled app to Nginx HTML directory
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy the built application from the 'builder' stage
-# Assuming `npm run build` outputs to a 'dist' directory.
-# If your build output is elsewhere (e.g., 'build', 'public'), adjust this path.
-COPY --from=builder /app/dist ./
+# Replace default Nginx config with a smaller, SPA-optimized one
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose the port that 'serve' will listen on
+# Cloud Run listens on $PORT; Nginx defaults to 80
+# So expose 8080 and change Nginx config to use it
 EXPOSE 8080
 
-# Command to run the static file server
-# --no-clipboard: prevents 'serve' from trying to open a browser
-# -l 8080: tells 'serve' to listen on port 8080
-# -s: serves static files from the current directory
-CMD ["serve", "-s", "-l", "8080"]
+CMD ["nginx", "-g", "daemon off;"]

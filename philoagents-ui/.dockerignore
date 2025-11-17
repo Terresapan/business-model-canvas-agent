@@ -1,26 +1,33 @@
-# Node
+# Node dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Build output
-build/
 dist/
+build/
 .next/
 
-# Secrets
+# Environment variables
 .env
-.env.local
+.env.*
+!.env.example   # keep sample file
 
-# Git / OS
+# Git / OS junk
 .git
 .gitignore
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE files
 .vscode/
 .idea/
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Docker stuff
+Dockerfile
+Dockerfile.*
+
+# Cache
+*.cache
+.cache/

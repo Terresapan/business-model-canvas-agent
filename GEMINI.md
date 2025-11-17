@@ -1,0 +1,76 @@
+# Project Overview
+
+This project is a course on building AI agents called "PhiloAgents". It consists of a Python backend (`philoagents-api`) and a JavaScript-based game UI (`philoagents-ui`).
+
+The backend is a FastAPI application that uses the `langchain`, `langgraph`, and `groq` libraries to create AI agents. It provides an API for the frontend to interact with the agents.
+
+The frontend is a web-based game built with the Phaser game framework. It allows users to interact with the "PhiloAgents" in a virtual world.
+
+The project uses Docker to manage the local infrastructure, including a MongoDB database, the agent API, and the game UI.
+
+# Building and Running
+
+The project uses a top-level `Makefile` to orchestrate the build and run process.
+
+**1. Start the application:**
+
+To start the entire application stack (backend, frontend, and database), run the following command from the root directory:
+
+```bash
+make infrastructure-up
+```
+
+This will start the following services:
+- `philoagents-api`: The backend API, available at `http://localhost:8000`
+- `philoagents-ui`: The frontend game, available at `http://localhost:8080`
+- `mongodb`: The MongoDB database, available at `mongodb://localhost:27017`
+
+**2. Stop the application:**
+
+To stop the application, run:
+
+```bash
+make infrastructure-stop
+```
+
+**3. Populate the database:**
+
+To populate the MongoDB database with the required data for the agents, run:
+
+```bash
+make create-long-term-memory
+```
+
+# Development Conventions
+
+## Backend
+
+The backend is a Python project that uses `uv` for dependency management. To install the dependencies, run:
+
+```bash
+cd philoagents-api
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e .
+```
+
+## Frontend
+
+The frontend is a JavaScript project that uses `npm` for dependency management. To install the dependencies, run:
+
+```bash
+cd philoagents-ui
+npm install
+```
+
+To run the frontend in development mode, run:
+
+```bash
+npm run dev
+```
+
+To build the frontend for production, run:
+
+```bash
+npm run build
+```

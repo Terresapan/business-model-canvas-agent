@@ -10,7 +10,12 @@ WORKDIR /app
 # Copy package files and install dependencies
 # We copy this first to cache the 'npm install' layer
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
+
+# Copy project files
+COPY . .
 
 # Expose the port your dev server uses (8080 matches your compose file)
 EXPOSE 8080

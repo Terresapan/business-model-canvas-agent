@@ -26,10 +26,7 @@ RUN uv pip install . --group main
 # 4. Copy the application source code into the container.
 COPY src/philoagents philoagents/
 
-# Cloud Run expects the server to listen on $PORT
-ENV PORT=8080
-
 # 5. This is the production-ready command.
 # It runs the fast 'uvicorn' server without the slow '--reload' flag.
-# Cloud Run will automatically pass in the correct --port (8080).
-CMD ["/app/.venv/bin/uvicorn", "philoagents.infrastructure.api:app", "--host", "0.0.0.0", "--port", "8080"]
+# Cloud Run will automatically pass in the correct --port.
+CMD ["/app/.venv/bin/uvicorn", "philoagents.infrastructure.api:app", "--host", "0.0.0.0", "--port", "$PORT"]

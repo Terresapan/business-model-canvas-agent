@@ -30,7 +30,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Create a new Nginx config that listens on the port specified by the PORT environment variable
 RUN echo "server { \\
-    listen \$PORT; \\
+    listen \${PORT}; \\
     location / { \\
         root   /usr/share/nginx/html; \\
         index  index.html; \\

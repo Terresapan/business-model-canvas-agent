@@ -16,13 +16,32 @@ let apiUrl = (() => {
     !window.location.hostname.includes("192.168.");
 
   if (isProd) {
-    // In production/cloud, use the same host as the UI without port
-    // Cloud Run services are accessed via the same domain with path routing
+    // In production/cloud, use the API service URL
+    // Cloud Run has separate services for UI and API
     const protocol = window.location.protocol;
+
+    // Check if we're on the UI service and need to switch to API service
     const hostname = window.location.hostname;
-    // Remove port if present in hostname (for Cloud Run)
-    const cleanHostname = hostname.split(":")[0];
-    return `${protocol}//${cleanHostname}`;
+    console.log("Current hostname:", hostname);
+
+    if (hostname.includes("philoagents-ui-")) {
+      // We're on the UI service, switch to API service
+      const apiHostname = hostname.replace(
+        "philoagents-ui-",
+        "philoagents-api-"
+      );
+      const apiUrl = `${protocol}//${apiHostname}`;
+      console.log("Detected UI service, using API service URL:", apiUrl);
+      return apiUrl;
+    } else if (hostname.includes("philoagents-api-")) {
+      // Already on API service (shouldn't happen for UI code, but just in case)
+      console.log("Already on API service hostname:", hostname);
+      return `${protocol}//${hostname}`;
+    } else {
+      // Fallback for other production environments
+      console.log("Unknown production hostname, using as-is:", hostname);
+      return `${protocol}//${hostname}`;
+    }
   }
 
   // In local development, use localhost

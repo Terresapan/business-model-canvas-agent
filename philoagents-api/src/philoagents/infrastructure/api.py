@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import List
+import os
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from opik.integrations.langchain import OpikTracer
@@ -52,10 +53,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# CORS configuration - allow specific origins when credentials are enabled
+# Get allowed origins from environment or use defaults
+allowed_origins = [
+    "https://philoagents-ui-635390037922.us-central1.run.app",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
+# Add environment-specific origins if available
+if "CORS_ORIGINS" in os.environ:
+    allowed_origins.extend(os.environ["CORS_ORIGINS"].split(","))
+
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["https://philoagents-ui-635390037922.us-central1.run.app"],
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,6 +81,54 @@ async def health_check():
     return {"status": "ok"}
 #
 # --- END OF NEW SECTION ---
+
+# --- DIAGNOSTIC ENDPOINT FOR DATABASE CONNECTIVITY ---
+#
+@app.get("/diagnostics/database")
+async def database_diagnostics():
+    """Diagnostic endpoint to check database connectivity and status."""
+    try:
+        user_factory = BusinessUserFactory()
+        
+        # Test connection by getting user count
+        user_count = await user_factory.get_users_count()
+        
+        # Test by fetching all users (should return empty array if none exist)
+        users = await user_factory.get_all_users()
+        
+        # Get MongoDB host info from settings
+        uri_host = urlparse(settings.MONGODB_URI).netloc
+        
+        return {
+            "status": "healthy",
+            "database": {
+                "host": uri_host,
+                "connected": True,
+                "user_count": user_count,
+                "users_loaded": len(users)
+            },
+            "timestamp": __import__('datetime').datetime.utcnow().isoformat()
+        }
+    except DatabaseConnectionError as e:
+        return {
+            "status": "unhealthy",
+            "database": {
+                "connected": False,
+                "error": f"Connection error: {str(e)}"
+            },
+            "timestamp": __import__('datetime').datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": {
+                "connected": False,
+                "error": f"Unexpected error: {str(e)}"
+            },
+            "timestamp": __import__('datetime').datetime.utcnow().isoformat()
+        }
+#
+# --- END DIAGNOSTIC ENDPOINT ---
 
 class BusinessChatMessage(BaseModel):
     message: str

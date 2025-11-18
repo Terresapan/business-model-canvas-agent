@@ -3,6 +3,12 @@ console.log("Simple profile management loaded");
 
 // Global state
 let apiUrl = (() => {
+  // Check if API_URL is defined globally (set by webpack build)
+  if (typeof API_URL !== "undefined" && API_URL) {
+    console.log("Using API_URL from build environment:", API_URL);
+    return API_URL;
+  }
+
   // Detect if we're in production/cloud environment
   const isProd =
     window.location.hostname !== "localhost" &&
@@ -10,10 +16,13 @@ let apiUrl = (() => {
     !window.location.hostname.includes("192.168.");
 
   if (isProd) {
-    // In production/cloud, use the same host as the UI but on port 8000
+    // In production/cloud, use the same host as the UI without port
+    // Cloud Run services are accessed via the same domain with path routing
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
-    return `${protocol}//${hostname}:8000`;
+    // Remove port if present in hostname (for Cloud Run)
+    const cleanHostname = hostname.split(":")[0];
+    return `${protocol}//${cleanHostname}`;
   }
 
   // In local development, use localhost
@@ -27,20 +36,35 @@ let currentMode = "create"; // 'create' or 'edit'
 let editToken = null; // Token being edited
 
 async function loadAllUsers() {
+  console.log("Loading all users from:", `${apiUrl}/business/users`);
   try {
     const response = await fetch(`${apiUrl}/business/users`);
+    console.log("Response status:", response.status);
+    console.log("Response ok:", response.ok);
+
     if (response.ok) {
       allUsers = await response.json();
       console.log("Loaded users:", allUsers);
       return allUsers;
+    } else {
+      const errorText = await response.text();
+      console.error(
+        "Failed to load users - Response not ok:",
+        response.status,
+        errorText
+      );
     }
   } catch (error) {
     console.error("Error loading users:", error);
+    console.error("Error details:", error.message, error.stack);
   }
   return [];
 }
 
 async function createUser(userData) {
+  console.log("Creating user with data:", userData);
+  console.log("POST request to:", `${apiUrl}/business/user`);
+
   try {
     const response = await fetch(`${apiUrl}/business/user`, {
       method: "POST",
@@ -48,16 +72,29 @@ async function createUser(userData) {
       body: JSON.stringify(userData),
     });
 
+    console.log("Create user response status:", response.status);
+    console.log("Create user response ok:", response.ok);
+
     if (response.ok) {
       const result = await response.json();
-      console.log("User created:", result);
+      console.log("User created successfully:", result);
       return result;
     } else {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to create user");
+      const errorData = await response
+        .json()
+        .catch(() => ({ detail: "Unknown error" }));
+      console.error(
+        "Failed to create user - Response not ok:",
+        response.status,
+        errorData
+      );
+      throw new Error(
+        errorData.detail || `Failed to create user: ${response.status}`
+      );
     }
   } catch (error) {
     console.error("Error creating user:", error);
+    console.error("Error details:", error.message, error.stack);
     throw error;
   }
 }
@@ -195,6 +232,10 @@ function setupFormHandlers() {
 }
 
 async function handleSubmit() {
+  console.log("=== FORM SUBMISSION STARTED ===");
+  console.log("Current mode:", currentMode);
+  console.log("Edit token:", editToken);
+
   const formData = {
     token: document.getElementById("token").value.trim(),
     owner_name: document.getElementById("owner_name").value.trim(),
@@ -215,13 +256,19 @@ async function handleSubmit() {
     current_focus: document.getElementById("current_focus").value.trim(),
   };
 
+  console.log("Form data collected:", formData);
+
   try {
     if (currentMode === "create") {
+      console.log("Creating new user...");
       await createUser(formData);
       alert("Profile created successfully!");
+      console.log("Profile created alert shown");
     } else if (currentMode === "edit" && editToken) {
+      console.log("Updating existing user...");
       await updateUser(editToken, formData);
       alert("Profile updated successfully!");
+      console.log("Profile updated alert shown");
     } else {
       throw new Error("Invalid mode or missing token");
     }
@@ -231,14 +278,21 @@ async function handleSubmit() {
 
     // Reload users if callback exists
     if (window.onProfileCreated) {
+      console.log("Calling onProfileCreated callback");
       window.onProfileCreated();
     }
 
     // Also trigger global refresh if available
     if (window.refreshBusinessDropdown) {
+      console.log("Calling refreshBusinessDropdown callback");
       window.refreshBusinessDropdown();
     }
+
+    console.log("=== FORM SUBMISSION COMPLETED SUCCESSFULLY ===");
   } catch (error) {
+    console.error("=== FORM SUBMISSION FAILED ===");
+    console.error("Error:", error);
+    console.error("Error message:", error.message);
     alert(`Error: ${error.message}`);
   }
 }

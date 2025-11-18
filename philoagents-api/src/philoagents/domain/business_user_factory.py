@@ -1,6 +1,7 @@
 import logging
 import asyncio
 from typing import Optional, List
+from urllib.parse import urlparse
 from philoagents.domain.business_user import BusinessUser
 from philoagents.config import settings
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -38,37 +39,47 @@ class BusinessUserFactory:
     @classmethod
     async def create_collection_with_index(cls):
         """Creates collection and ensures unique index exists (called once at startup)."""
+        logger.info("=== INITIALIZING MONGODB CONNECTION ===")
+        logger.info(f"MongoDB URI host: {urlparse(settings.MONGODB_URI).netloc}")
+        logger.info(f"Database name: {settings.MONGODB_DB_NAME}")
+        logger.info(f"Collection name: {settings.MONGODB_USER_COLLECTION}")
+        
         if cls._index_created:
+            logger.info("Collection already initialized, skipping")
             return
             
         with cls._lock:
             if cls._index_created:  # Double-check pattern
+                logger.info("Collection already initialized (double-check), skipping")
                 return
                 
             try:
                 if cls._client is None:
+                    logger.info("Creating new MongoDB client...")
                     cls._client = AsyncIOMotorClient(
                         settings.MONGODB_URI,
                         serverSelectionTimeoutMS=5000  # 5 second timeout
                     )
                     
                     # Test connection
+                    logger.info("Testing MongoDB connection with ping...")
                     await cls._client.admin.command('ping')
-                    logger.info("Successfully connected to MongoDB")
+                    logger.info("✅ Successfully connected to MongoDB")
                 
                 db = cls._client[settings.MONGODB_DB_NAME]
                 cls._collection = db[settings.MONGODB_USER_COLLECTION]
                 
                 # Create unique index only once
+                logger.info("Creating unique index on 'token' field...")
                 await cls._collection.create_index("token", unique=True)
                 cls._index_created = True
-                logger.info("MongoDB collection and index initialized successfully")
+                logger.info("✅ MongoDB collection and index initialized successfully")
                 
             except ConnectionFailure as e:
-                logger.error(f"Failed to connect to MongoDB: {e}")
+                logger.error(f"❌ Failed to connect to MongoDB: {e}")
                 raise DatabaseConnectionError(f"Unable to connect to database: {e}") from e
             except Exception as e:
-                logger.error(f"Failed to initialize database: {e}")
+                logger.error(f"❌ Failed to initialize database: {e}")
                 raise DatabaseOperationError(f"Database initialization failed: {e}") from e
 
     def _get_collection(self):
@@ -158,27 +169,33 @@ class BusinessUserFactory:
             UserAlreadyExistsError: If user with same token already exists
             DatabaseOperationError: If database operation fails
         """
+        logger.info(f"=== CREATING NEW USER: {user.token} ===")
+        
         if not user or not isinstance(user, BusinessUser):
+            logger.error("Invalid BusinessUser object provided")
             raise ValueError("Invalid BusinessUser object provided")
             
         if not hasattr(user, 'token') or not user.token:
+            logger.error("User must have a valid token")
             raise ValueError("User must have a valid token")
             
         try:
             collection = self._get_collection()
             user_document = user.model_dump()
+            logger.info(f"User document prepared: {user_document}")
             
             # --- THIS IS THE FIX ---
             # 1. Store the result of the insert operation
+            logger.info("Executing insert_one operation...")
             result = await collection.insert_one(user_document)
             
             # 2. Check if the insert operation returned a valid ID
             if result.inserted_id:
-                logger.info(f"Successfully created user with token '{user.token}'")
+                logger.info(f"✅ Successfully created user with token '{user.token}', inserted_id: {result.inserted_id}")
                 return True
             else:
                 # 3. If not, the write failed silently. Raise an error.
-                logger.error(f"User '{user.token}' insert_one reported no inserted_id.")
+                logger.error(f"❌ User '{user.token}' insert_one reported no inserted_id.")
                 raise DatabaseOperationError("Write operation failed to return an ID.")
             # --- END OF FIX ---
             

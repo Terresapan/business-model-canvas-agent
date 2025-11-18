@@ -17,14 +17,36 @@ class ApiService {
       // Use window.location to determine API URL in production
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
-      const port = window.location.port;
 
-      // If API_URL is defined via webpack env, use it, otherwise derive from current host
-      this.apiUrl =
-        typeof API_URL !== "undefined"
-          ? API_URL
-          : `${protocol}//${hostname}:8000`;
-      console.log("API URL:", this.apiUrl);
+      // If API_URL is defined via webpack env, use it
+      if (typeof API_URL !== "undefined" && API_URL) {
+        this.apiUrl = API_URL;
+        console.log("Using API_URL from build environment:", API_URL);
+      } else {
+        // Detect Cloud Run service and route to correct API service
+        console.log("Current hostname:", hostname);
+
+        if (hostname.includes("philoagents-ui-")) {
+          // We're on the UI service, switch to API service
+          const apiHostname = hostname.replace(
+            "philoagents-ui-",
+            "philoagents-api-"
+          );
+          this.apiUrl = `${protocol}//${apiHostname}`;
+          console.log(
+            "Detected UI service, using API service URL:",
+            this.apiUrl
+          );
+        } else if (hostname.includes("philoagents-api-")) {
+          // Already on API service
+          console.log("Already on API service hostname:", hostname);
+          this.apiUrl = `${protocol}//${hostname}`;
+        } else {
+          // Fallback for other production environments
+          console.log("Unknown production hostname, using as-is:", hostname);
+          this.apiUrl = `${protocol}//${hostname}`;
+        }
+      }
     } else {
       console.log("Development mode");
       const isHttps = window.location.protocol === "https:";

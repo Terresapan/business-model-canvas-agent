@@ -55,28 +55,65 @@ let currentMode = "create"; // 'create' or 'edit'
 let editToken = null; // Token being edited
 
 async function loadAllUsers() {
+  console.log("=== LOAD ALL USERS FUNCTION STARTED ===");
   console.log("Loading all users from:", `${apiUrl}/business/users`);
+  console.log("API URL being used:", apiUrl);
+
   try {
+    console.log("Initiating fetch request to /business/users...");
     const response = await fetch(`${apiUrl}/business/users`);
+    console.log("Fetch request completed");
+
     console.log("Response status:", response.status);
     console.log("Response ok:", response.ok);
+    console.log("Response statusText:", response.statusText);
+    console.log("Response type:", response.type);
+    console.log(
+      "Response headers:",
+      Object.fromEntries(response.headers.entries())
+    );
 
     if (response.ok) {
+      console.log("Response is OK, parsing JSON...");
       allUsers = await response.json();
       console.log("Loaded users:", allUsers);
+      console.log("Number of users loaded:", allUsers.length);
       return allUsers;
     } else {
-      const errorText = await response.text();
+      console.error(
+        "Response is not OK, attempting to extract error details..."
+      );
+      // Try to get error details from response
+      let errorData;
+      let errorBody;
+
+      try {
+        errorBody = await response.text();
+        console.error("Error response body (text):", errorBody);
+        errorData = JSON.parse(errorBody);
+        console.error("Error response data (parsed JSON):", errorData);
+      } catch (e) {
+        console.error("Failed to parse error response as JSON:", e);
+        errorData = {
+          detail: errorBody || `HTTP ${response.status} ${response.statusText}`,
+        };
+      }
+
       console.error(
         "Failed to load users - Response not ok:",
         response.status,
-        errorText
+        errorData
       );
     }
   } catch (error) {
-    console.error("Error loading users:", error);
-    console.error("Error details:", error.message, error.stack);
+    console.error("=== ERROR LOADING USERS (CATCH BLOCK) ===");
+    console.error("Error object:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Error type:", error.constructor.name);
   }
+
+  console.log("Returning empty array due to error");
   return [];
 }
 

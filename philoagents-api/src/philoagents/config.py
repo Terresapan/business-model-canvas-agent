@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Determine the environment based on the presence of a Cloud Run-specific variable
@@ -15,12 +15,7 @@ class Settings(BaseSettings):
         extra="ignore", 
         env_file_encoding="utf-8"
     )
-
-    # --- GROQ Configuration ---
-    # GROQ_API_KEY: str
-    # GROQ_LLM_MODEL: str = "llama-3.3-70b-versatile"
-    # GROQ_LLM_MODEL_CONTEXT_SUMMARY: str = "llama-3.1-8b-instant"
-
+    
     # --- GEMINI Configuration ---
     GEMINI_API_KEY: str
     GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
@@ -36,7 +31,14 @@ class Settings(BaseSettings):
     # --- MongoDB Configuration ---
     MONGODB_URI: str 
     MONGODB_DB_NAME: str = "philoagents"
+    MONGODB_DB_DEV_NAME: str = "philoagents_dev"
     MONGODB_USER_COLLECTION: str = "business_users"
+
+    @model_validator(mode='after')
+    def set_db_name(self):
+        if ENV == "local":
+            self.MONGODB_DB_NAME = self.MONGODB_DB_DEV_NAME
+        return self
 
     # --- Agents Configuration ---
     TOTAL_MESSAGES_SUMMARY_TRIGGER: int = 14
@@ -48,3 +50,17 @@ class Settings(BaseSettings):
 
 
 settings = Settings() # type: ignore
+
+# --- Export Settings to Environment Variables for LangChain Tracing ---
+# LangChain libraries rely on environment variables for tracing configuration.
+if settings.LANGSMITH_API_KEY:
+    os.environ["LANGCHAIN_API_KEY"] = settings.LANGSMITH_API_KEY
+    os.environ["LANGCHAIN_TRACING_V2"] = "true" if settings.LANGSMITH_TRACING else "false"
+    os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
+    os.environ["LANGCHAIN_PROJECT"] = settings.LANGSMITH_PROJECT
+    
+    # Ensure compatibility with different SDK versions
+    os.environ["LANGSMITH_API_KEY"] = settings.LANGSMITH_API_KEY
+    os.environ["LANGSMITH_TRACING"] = "true" if settings.LANGSMITH_TRACING else "false"
+    os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
+    os.environ["LANGSMITH_PROJECT"] = settings.LANGSMITH_PROJECT

@@ -6,15 +6,18 @@ The backend is a FastAPI application that uses the `langchain`, `langgraph`, and
 
 The frontend is a web-based game built with the Phaser game framework. It allows users to interact with the "PhiloAgents" in a virtual world.
 
-The project uses Docker to manage the local infrastructure, including a MongoDB database, the agent API, and the game UI.
+The project uses Docker to manage the local infrastructure (agent API and game UI), but connects to a cloud-hosted MongoDB Atlas database for persistence in both local and production environments.
 
 # Building and Running
 
 The project uses a top-level `Makefile` to orchestrate the build and run process.
 
+**Prerequisites:**
+- Ensure you have a `philoagents-api/.env` file containing your MongoDB Atlas connection string: `MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/...`
+
 **1. Start the application:**
 
-To start the entire application stack (backend, frontend, and database), run the following command from the root directory:
+To start the application stack (backend and frontend), run the following command from the root directory:
 
 ```bash
 make infrastructure-up
@@ -23,7 +26,6 @@ make infrastructure-up
 This will start the following services:
 - `philoagents-api`: The backend API, available at `http://localhost:8000`
 - `philoagents-ui`: The frontend game, available at `http://localhost:8080`
-- `mongodb`: The MongoDB database, available at `mongodb://localhost:27017`
 
 **2. Stop the application:**
 
@@ -35,7 +37,7 @@ make infrastructure-stop
 
 **3. Populate the database:**
 
-To populate the MongoDB database with the required data for the agents, run:
+To populate the MongoDB Atlas database with the required data for the agents, run:
 
 ```bash
 make create-long-term-memory

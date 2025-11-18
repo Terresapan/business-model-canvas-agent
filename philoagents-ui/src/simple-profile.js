@@ -3,49 +3,63 @@ console.log("Simple profile management loaded");
 
 // Global state
 let apiUrl = (() => {
-  // Check if API_URL is defined globally (set by webpack build)
-  if (typeof API_URL !== "undefined" && API_URL) {
-    console.log("Using API_URL from build environment:", API_URL);
-    return API_URL;
-  }
+  // Check if NODE_ENV is defined (webpack defines it) - fallback to "production" for built apps
+  const nodeEnv =
+    typeof process !== "undefined" && process.env && process.env.NODE_ENV
+      ? process.env.NODE_ENV
+      : "development";
+  console.log("NODE_ENV:", nodeEnv);
 
-  // Detect if we're in production/cloud environment
-  const isProd =
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1" &&
-    !window.location.hostname.includes("192.168.");
+  const isProd = nodeEnv === "production";
+  console.log("Is production build:", isProd);
 
-  if (isProd) {
-    // In production/cloud, use the API service URL
-    // Cloud Run has separate services for UI and API
+  // Always use localhost in development mode for Docker
+  if (
+    !isProd ||
+    (typeof window !== "undefined" &&
+      window.location.hostname === "localhost" &&
+      window.location.port === "8080")
+  ) {
+    console.log("Development mode - using localhost");
+    console.log("Protocol:", window.location.protocol);
+    console.log("Hostname:", window.location.hostname);
+    console.log("Port:", window.location.port);
+
+    return "http://localhost:8000";
+  } else {
+    console.log("Production mode detected");
+    // Use window.location to determine API URL in production
     const protocol = window.location.protocol;
-
-    // Check if we're on the UI service and need to switch to API service
     const hostname = window.location.hostname;
-    console.log("Current hostname:", hostname);
 
-    if (hostname.includes("philoagents-ui-")) {
-      // We're on the UI service, switch to API service
-      const apiHostname = hostname.replace(
-        "philoagents-ui-",
-        "philoagents-api-"
-      );
-      const apiUrl = `${protocol}//${apiHostname}`;
-      console.log("Detected UI service, using API service URL:", apiUrl);
-      return apiUrl;
-    } else if (hostname.includes("philoagents-api-")) {
-      // Already on API service (shouldn't happen for UI code, but just in case)
-      console.log("Already on API service hostname:", hostname);
-      return `${protocol}//${hostname}`;
+    // If API_URL is defined via webpack env, use it
+    if (typeof API_URL !== "undefined" && API_URL) {
+      console.log("Using API_URL from build environment:", API_URL);
+      return API_URL;
     } else {
-      // Fallback for other production environments
-      console.log("Unknown production hostname, using as-is:", hostname);
-      return `${protocol}//${hostname}`;
+      // Detect Cloud Run service and route to correct API service
+      console.log("Current hostname:", hostname);
+
+      if (hostname.includes("philoagents-ui-")) {
+        // We're on the UI service, switch to API service
+        const apiHostname = hostname.replace(
+          "philoagents-ui-",
+          "philoagents-api-"
+        );
+        const apiUrl = `${protocol}//${apiHostname}`;
+        console.log("Detected UI service, using API service URL:", apiUrl);
+        return apiUrl;
+      } else if (hostname.includes("philoagents-api-")) {
+        // Already on API service
+        console.log("Already on API service hostname:", hostname);
+        return `${protocol}//${hostname}`;
+      } else {
+        // Fallback for other production environments
+        console.log("Unknown production hostname, using as-is:", hostname);
+        return `${protocol}//${hostname}`;
+      }
     }
   }
-
-  // In local development, use localhost
-  return "http://localhost:8000";
 })();
 
 console.log("API URL determined as:", apiUrl);

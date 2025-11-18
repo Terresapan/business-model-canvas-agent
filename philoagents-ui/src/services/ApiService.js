@@ -6,13 +6,27 @@ class ApiService {
     const nodeEnv =
       typeof process !== "undefined" && process.env && process.env.NODE_ENV
         ? process.env.NODE_ENV
-        : "production";
+        : "development";
     console.log("NODE_ENV:", nodeEnv);
 
     const isProd = nodeEnv === "production";
     console.log("Is production build:", isProd);
 
-    if (isProd) {
+    // Always use localhost in development mode for Docker
+    if (
+      !isProd ||
+      (typeof window !== "undefined" &&
+        window.location.hostname === "localhost" &&
+        window.location.port === "8080")
+    ) {
+      console.log("Development mode - using localhost");
+      console.log("Protocol:", window.location.protocol);
+      console.log("Hostname:", window.location.hostname);
+      console.log("Port:", window.location.port);
+
+      this.apiUrl = "http://localhost:8000";
+      console.log("Set API URL to:", this.apiUrl);
+    } else {
       console.log("Production mode detected");
       // Use window.location to determine API URL in production
       const protocol = window.location.protocol;
@@ -47,22 +61,6 @@ class ApiService {
           this.apiUrl = `${protocol}//${hostname}`;
         }
       }
-    } else {
-      console.log("Development mode");
-      const isHttps = window.location.protocol === "https:";
-      console.log("Is HTTPS:", isHttps);
-      console.log("Protocol:", window.location.protocol);
-      console.log("Hostname:", window.location.hostname);
-
-      if (isHttps) {
-        console.log("Using GitHub Codespaces URL");
-        const currentHostname = window.location.hostname;
-        this.apiUrl = `https://${currentHostname.replace("8080", "8000")}`;
-      } else {
-        console.log("Using localhost URL");
-        this.apiUrl = "http://localhost:8000";
-      }
-      console.log("Set API URL to:", this.apiUrl);
     }
 
     // Fallback if somehow still undefined
@@ -78,6 +76,7 @@ class ApiService {
 
   async request(endpoint, method, data) {
     const url = `${this.apiUrl}${endpoint}`;
+    console.log("Making request to:", url);
     const options = {
       method,
       headers: {
@@ -195,14 +194,27 @@ class ApiService {
    */
   async getAllBusinessUsers() {
     try {
-      const response = await fetch(`${this.apiUrl}/business/users`, {
+      console.log("=== getAllBusinessUsers DEBUG ===");
+      console.log("API URL being used:", this.apiUrl);
+      const url = `${this.apiUrl}/business/users`;
+      console.log("Full URL:", url);
+
+      const response = await fetch(url, {
         method: "GET",
       });
+
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("Error response data:", errorData);
         throw new Error(errorData.detail || "Failed to fetch users");
       }
-      return await response.json();
+
+      const data = await response.json();
+      console.log("Users data received:", data);
+      return data;
     } catch (error) {
       console.error("Error fetching all business users:", error);
       throw error;

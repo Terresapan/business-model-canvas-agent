@@ -62,39 +62,76 @@ async function loadAllUsers() {
 }
 
 async function createUser(userData) {
+  console.log("=== CREATE USER FUNCTION STARTED ===");
   console.log("Creating user with data:", userData);
   console.log("POST request to:", `${apiUrl}/business/user`);
+  console.log("Request headers:", { "Content-Type": "application/json" });
 
   try {
+    console.log("Initiating fetch request...");
     const response = await fetch(`${apiUrl}/business/user`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
     });
+    console.log("Fetch request completed");
 
     console.log("Create user response status:", response.status);
     console.log("Create user response ok:", response.ok);
+    console.log("Create user response statusText:", response.statusText);
+    console.log("Create user response type:", response.type);
+    console.log(
+      "Create user response headers:",
+      Object.fromEntries(response.headers.entries())
+    );
 
     if (response.ok) {
+      console.log("Response is OK, parsing JSON...");
       const result = await response.json();
       console.log("User created successfully:", result);
       return result;
     } else {
-      const errorData = await response
-        .json()
-        .catch(() => ({ detail: "Unknown error" }));
+      console.error(
+        "Response is not OK, attempting to extract error details..."
+      );
+      // Try to get error details from response
+      let errorData;
+      let errorBody;
+
+      try {
+        errorBody = await response.text();
+        console.error("Error response body (text):", errorBody);
+        errorData = JSON.parse(errorBody);
+        console.error("Error response data (parsed JSON):", errorData);
+      } catch (e) {
+        console.error("Failed to parse error response as JSON:", e);
+        errorData = {
+          detail: errorBody || `HTTP ${response.status} ${response.statusText}`,
+        };
+      }
+
       console.error(
         "Failed to create user - Response not ok:",
         response.status,
         errorData
       );
-      throw new Error(
-        errorData.detail || `Failed to create user: ${response.status}`
-      );
+      const errorMessage =
+        errorData.detail ||
+        errorData.message ||
+        `Failed to create user: HTTP ${response.status}`;
+      console.error("Throwing error:", errorMessage);
+      throw new Error(errorMessage);
     }
   } catch (error) {
-    console.error("Error creating user:", error);
-    console.error("Error details:", error.message, error.stack);
+    console.error("=== ERROR CREATING USER (CATCH BLOCK) ===");
+    console.error("Error object:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Error type:", error.constructor.name);
+    console.error(
+      "Error stringified:",
+      JSON.stringify(error, Object.getOwnPropertyNames(error))
+    );
     throw error;
   }
 }
@@ -235,6 +272,7 @@ async function handleSubmit() {
   console.log("=== FORM SUBMISSION STARTED ===");
   console.log("Current mode:", currentMode);
   console.log("Edit token:", editToken);
+  console.log("API URL being used:", apiUrl);
 
   const formData = {
     token: document.getElementById("token").value.trim(),
@@ -256,12 +294,13 @@ async function handleSubmit() {
     current_focus: document.getElementById("current_focus").value.trim(),
   };
 
-  console.log("Form data collected:", formData);
+  console.log("Form data collected:", JSON.stringify(formData, null, 2));
 
   try {
     if (currentMode === "create") {
       console.log("Creating new user...");
-      await createUser(formData);
+      const result = await createUser(formData);
+      console.log("User creation result:", result);
       alert("Profile created successfully!");
       console.log("Profile created alert shown");
     } else if (currentMode === "edit" && editToken) {
@@ -291,8 +330,9 @@ async function handleSubmit() {
     console.log("=== FORM SUBMISSION COMPLETED SUCCESSFULLY ===");
   } catch (error) {
     console.error("=== FORM SUBMISSION FAILED ===");
-    console.error("Error:", error);
+    console.error("Error object:", error);
     console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     alert(`Error: ${error.message}`);
   }
 }

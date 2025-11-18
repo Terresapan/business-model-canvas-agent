@@ -236,40 +236,57 @@ async def validate_token(token: str = Query(...)):
 @app.post("/business/user", status_code=status.HTTP_201_CREATED)
 async def create_business_user(user: BusinessUser):
     """Creates a new business user profile."""
+    print(f"=== RECEIVED CREATE USER REQUEST ===")
+    print(f"Request method: POST")
+    print(f"Request endpoint: /business/user")
+    print(f"User data received: {user.model_dump()}")
+    print(f"User token: {user.token}")
+    print(f"User business_name: {user.business_name}")
+    
     try:
+        print("Creating BusinessUserFactory instance...")
         user_factory = BusinessUserFactory()
+        print("Calling user_factory.create_user()...")
         success = await user_factory.create_user(user)
+        print(f"user_factory.create_user() returned: {success}")
 
         if success:
+            print("✅ User creation successful, returning response")
             return {
                 "status": "success",
                 "message": f"User '{user.business_name}' created.",
                 "token": user.token
             }
         else:
-            # --- FIX #2: Add this 'else' block ---
-            # This stops the "fake success" by raising a
-            # proper error if the write fails silently.
+            print("❌ Database write operation failed silently")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Database write operation failed, but no exception was raised."
             )
     except UserAlreadyExistsError as e:
+        print(f"❌ UserAlreadyExistsError: {e}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
         )
     except DatabaseConnectionError as e:
+        print(f"❌ DatabaseConnectionError: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database connection failed. Please try again later."
         )
     except DatabaseOperationError as e:
+        print(f"❌ DatabaseOperationError: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database operation failed. Please try again."
         )
     except Exception as e:
+        print(f"❌ Unexpected error in create_business_user: {e}")
+        print(f"Error type: {type(e)}")
+        print(f"Error args: {e.args}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
 

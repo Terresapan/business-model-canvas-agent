@@ -1,9 +1,57 @@
 class ApiService {
   constructor() {
-    // This variable is defined by webpack.DefinePlugin
-    // In webpack/config.js for development, and passed as a build-arg for production
-    this.apiUrl = typeof API_URL !== 'undefined' ? API_URL : 'http://localhost:8000';
-    console.log("ApiService initialized with API URL:", this.apiUrl);
+    console.log("=== API SERVICE INIT DEBUG ===");
+
+    // Check if NODE_ENV is defined (webpack defines it) - fallback to "production" for built apps
+    const nodeEnv =
+      typeof process !== "undefined" && process.env && process.env.NODE_ENV
+        ? process.env.NODE_ENV
+        : "production";
+    console.log("NODE_ENV:", nodeEnv);
+
+    const isProd = nodeEnv === "production";
+    console.log("Is production build:", isProd);
+
+    if (isProd) {
+      console.log("Production mode detected");
+      // Use window.location to determine API URL in production
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const port = window.location.port;
+
+      // If API_URL is defined via webpack env, use it, otherwise derive from current host
+      this.apiUrl =
+        typeof API_URL !== "undefined"
+          ? API_URL
+          : `${protocol}//${hostname}:8000`;
+      console.log("API URL:", this.apiUrl);
+    } else {
+      console.log("Development mode");
+      const isHttps = window.location.protocol === "https:";
+      console.log("Is HTTPS:", isHttps);
+      console.log("Protocol:", window.location.protocol);
+      console.log("Hostname:", window.location.hostname);
+
+      if (isHttps) {
+        console.log("Using GitHub Codespaces URL");
+        const currentHostname = window.location.hostname;
+        this.apiUrl = `https://${currentHostname.replace("8080", "8000")}`;
+      } else {
+        console.log("Using localhost URL");
+        this.apiUrl = "http://localhost:8000";
+      }
+      console.log("Set API URL to:", this.apiUrl);
+    }
+
+    // Fallback if somehow still undefined
+    if (!this.apiUrl) {
+      console.warn("API URL is undefined, using fallback!");
+      this.apiUrl = "http://localhost:8000";
+      console.log("Fallback API URL:", this.apiUrl);
+    }
+
+    console.log("=== API SERVICE INIT COMPLETE ===");
+    console.log("Final API URL:", this.apiUrl);
   }
 
   async request(endpoint, method, data) {
@@ -126,15 +174,15 @@ class ApiService {
   async getAllBusinessUsers() {
     try {
       const response = await fetch(`${this.apiUrl}/business/users`, {
-        method: 'GET',
+        method: "GET",
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to fetch users');
+        throw new Error(errorData.detail || "Failed to fetch users");
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching all business users:', error);
+      console.error("Error fetching all business users:", error);
       throw error;
     }
   }
@@ -147,17 +195,17 @@ class ApiService {
   async createBusinessUser(userData) {
     try {
       const response = await fetch(`${this.apiUrl}/business/user`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to create user');
+        throw new Error(errorData.detail || "Failed to create user");
       }
       return await response.json();
     } catch (error) {
-      console.error('Error creating business user:', error);
+      console.error("Error creating business user:", error);
       throw error;
     }
   }
@@ -171,20 +219,20 @@ class ApiService {
   async updateBusinessUser(token, userData) {
     try {
       const response = await fetch(`${this.apiUrl}/business/user/${token}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(userData),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to update user');
+        throw new Error(errorData.detail || "Failed to update user");
       }
       return await response.json();
     } catch (error) {
-      console.error('Error updating business user:', error);
+      console.error("Error updating business user:", error);
       throw error;
     }
   }
@@ -197,16 +245,16 @@ class ApiService {
   async deleteBusinessUser(token) {
     try {
       const response = await fetch(`${this.apiUrl}/business/user/${token}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to delete user');
+        throw new Error(errorData.detail || "Failed to delete user");
       }
       return await response.json();
     } catch (error) {
-      console.error('Error deleting business user:', error);
+      console.error("Error deleting business user:", error);
       throw error;
     }
   }

@@ -363,8 +363,8 @@ function setupFormHandlers() {
           const file = fileInput.files[0];
           console.log("File selected:", file.name, file.size);
 
-          if (file.size > 18 * 1024 * 1024) {
-            alert("Image size must be less than 18MB");
+          if (file.size > 5 * 1024 * 1024) {
+            alert("Image size must be less than 5MB");
             fileInput.value = "";
             return;
           }
@@ -389,6 +389,46 @@ function setupFormHandlers() {
       });
     } else {
       console.error("CRITICAL: File input #business_image not found!");
+    }
+
+    // --- PDF INPUT CHANGE HANDLER (DIRECT BINDING) ---
+    const pdfInput = document.getElementById("business_pdf");
+    if (pdfInput) {
+      console.log("Found PDF input, binding CHANGE listener directly");
+
+      pdfInput.addEventListener("change", async (e) => {
+        console.log("DIRECT CHANGE EVENT FIRED on PDF input");
+        if (pdfInput.files.length > 0) {
+          const file = pdfInput.files[0];
+          console.log("PDF selected:", file.name, file.size);
+
+          if (file.size > 5 * 1024 * 1024) {
+            alert("PDF size must be less than 5MB");
+            pdfInput.value = "";
+            return;
+          }
+
+          try {
+            const base64Pdf = await readFileAsBase64(file);
+            // Use global variable instead of localStorage to avoid size limits
+            window.tempBusinessPdf = base64Pdf;
+            window.tempBusinessPdfName = file.name;
+            console.log("SAVED TO GLOBAL VARIABLE (window.tempBusinessPdf)");
+            // Alert the user so they know it worked
+            alert("PDF Ready! You can now click 'Create Profile'.");
+          } catch (err) {
+            console.error("Error processing PDF:", err);
+            alert("Failed to process PDF.");
+          }
+        }
+      });
+
+      // Prevent game interference
+      ["mousedown", "mouseup", "pointerdown", "pointerup"].forEach((evt) => {
+        pdfInput.addEventListener(evt, stopAll);
+      });
+    } else {
+      console.error("CRITICAL: PDF input #business_pdf not found!");
     }
 
     // --- SUBMIT BUTTON HANDLER ---
@@ -450,13 +490,13 @@ async function handleSubmit() {
   console.log("Edit token:", editToken);
   console.log("API URL being used:", apiUrl);
 
-  // Handle Image Upload - Store in LocalStorage only
+  // Handle Image Upload - Store in global variable
   const fileInput = document.getElementById("business_image");
   if (fileInput && fileInput.files.length > 0) {
     const file = fileInput.files[0];
-    // 18MB limit
-    if (file.size > 18 * 1024 * 1024) {
-      alert("Image size must be less than 18MB");
+    // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size must be less than 5MB");
       return;
     }
     try {
@@ -473,6 +513,34 @@ async function handleSubmit() {
   } else {
     console.log(
       "No new image selected, keeping existing localStorage data if any"
+    );
+  }
+
+  // Handle PDF Upload - Store in global variable
+  // pdfInput is already declared in setupFormHandlers, so we just use it here
+  const pdfInputHandle = document.getElementById("business_pdf");
+  if (pdfInputHandle && pdfInputHandle.files.length > 0) {
+    const file = pdfInputHandle.files[0];
+    // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
+      alert("PDF size must be less than 5MB");
+      return;
+    }
+    try {
+      const base64Pdf = await readFileAsBase64(file);
+      // Use global variable instead of localStorage to avoid size limits
+      window.tempBusinessPdf = base64Pdf;
+      window.tempBusinessPdfName = file.name;
+      console.log("PDF saved to global variable (window.tempBusinessPdf)");
+      alert("PDF ready");
+    } catch (e) {
+      console.error("Error reading PDF:", e);
+      alert("Failed to process PDF file");
+      return;
+    }
+  } else {
+    console.log(
+      "No new PDF selected, keeping existing global variable data if any"
     );
   }
 

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     
     # --- GEMINI Configuration ---
     GEMINI_API_KEY: str
-    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
+    GEMINI_LLM_MODEL: str = "gemini-2.5-flash-lite"
     GEMINI_LLM_MODEL_CONTEXT_SUMMARY: str = "gemini-2.5-flash-lite"
 
     # --- LangSmith Configuration ---

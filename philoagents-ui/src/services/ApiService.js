@@ -104,23 +104,46 @@ class ApiService {
         user_token: userToken,
       };
 
-      // Check for temporary image in global variable
+      // Check for shared business image in global variable (persists across expert switches)
       const tempImage = window.tempBusinessImage;
-
       if (tempImage) {
-        console.log("DEBUG: Found tempBusinessImage in global variable");
+        console.log("DEBUG: Found shared tempBusinessImage in global variable");
         console.log("DEBUG: Image string length:", tempImage.length);
         console.log("DEBUG: First 50 chars:", tempImage.substring(0, 50));
 
         payload.image_base64 = tempImage;
 
-        // Clear it after sending so it doesn't persist for future messages unless re-uploaded
-        window.tempBusinessImage = null;
+        // Image data persists across all business expert conversations for better UX
+        // Users upload once and can discuss with any expert
         console.log(
-          "DEBUG: Image attached to payload and cleared from global variable"
+          "DEBUG: Shared image attached to payload and retained for cross-expert conversations"
         );
       } else {
-        console.log("DEBUG: No tempBusinessImage found in global variable");
+        console.log(
+          "DEBUG: No shared tempBusinessImage found in global variable"
+        );
+      }
+
+      // Check for shared business PDF in global variable (persists across expert switches)
+      const tempPdf = window.tempBusinessPdf;
+      const tempPdfName = window.tempBusinessPdfName;
+      if (tempPdf) {
+        console.log("DEBUG: Found shared tempBusinessPdf in global variable");
+        console.log("DEBUG: PDF string length:", tempPdf.length);
+        console.log("DEBUG: PDF name:", tempPdfName);
+
+        payload.pdf_base64 = tempPdf;
+        payload.pdf_name = tempPdfName;
+
+        // PDF data persists across all business expert conversations for better UX
+        // Users upload once and can discuss with any expert
+        console.log(
+          "DEBUG: Shared PDF attached to payload and retained for cross-expert conversations"
+        );
+      } else {
+        console.log(
+          "DEBUG: No shared tempBusinessPdf found in global variable"
+        );
       }
 
       const data = await this.request("/chat/business", "POST", payload);

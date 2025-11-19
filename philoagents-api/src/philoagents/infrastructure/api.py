@@ -135,14 +135,28 @@ class BusinessChatMessage(BaseModel):
     expert_id: str
     user_token: str
     image_base64: Optional[str] = None
+    pdf_base64: Optional[str] = None
+    pdf_name: Optional[str] = None
 
 
 @app.post("/chat/business")
 async def business_chat(chat_message: BusinessChatMessage):
     """Chat with a Business Canvas expert."""
     try:
+        print(f"🔍 DEBUG: Received business chat request")
+        print(f"🔍 DEBUG: Message: {chat_message.message[:100]}...")
+        print(f"🔍 DEBUG: Expert ID: {chat_message.expert_id}")
+        print(f"🔍 DEBUG: User token: {chat_message.user_token}")
+        print(f"🔍 DEBUG: Has image: {bool(chat_message.image_base64)}")
+        print(f"🔍 DEBUG: Has PDF: {bool(chat_message.pdf_base64)}")
+        if chat_message.pdf_name:
+            print(f"🔍 DEBUG: PDF name: {chat_message.pdf_name}")
+        if chat_message.pdf_base64:
+            print(f"🔍 DEBUG: PDF base64 length: {len(chat_message.pdf_base64)}")
+        
         expert_factory = BusinessExpertFactory()
         expert = expert_factory.get_expert(chat_message.expert_id)
+        print(f"🔍 DEBUG: Got expert: {expert.name} ({expert.domain})")
 
         # Get user context if token provided
         user_context = None
@@ -152,11 +166,15 @@ async def business_chat(chat_message: BusinessChatMessage):
                 user = await user_factory.get_user_by_token(chat_message.user_token)
                 if user:
                     user_context = user.model_dump()
+                    print(f"🔍 DEBUG: Got user context for: {user_context.get('business_name', 'Unknown')}")
+                else:
+                    print(f"🔍 DEBUG: No user found with token: {chat_message.user_token}")
             except (DatabaseConnectionError, DatabaseOperationError) as e:
                 # Continue without user context if database issues occur
                 print(f"Warning: Could not retrieve user context: {e}")
 
-        response, _ = await get_business_response(
+        print(f"🔍 DEBUG: Starting get_business_response call...")
+        response, state = await get_business_response(
             messages=chat_message.message,
             expert_id=chat_message.expert_id,
             expert_name=expert.name,
@@ -167,11 +185,24 @@ async def business_chat(chat_message: BusinessChatMessage):
             user_token=chat_message.user_token,
             user_context=user_context,
             image_base64=chat_message.image_base64,
+            pdf_base64=chat_message.pdf_base64,
+            pdf_name=chat_message.pdf_name,
         )
+        print(f"🔍 DEBUG: get_business_response completed successfully")
+        print(f"🔍 DEBUG: Response length: {len(response)}")
         return {"response": response}
     except Exception as e:
-        opik_tracer = OpikTracer()
-        opik_tracer.flush()
+        print(f"❌ ERROR in business_chat: {len(str(e))} characters")
+        print(f"🔍 DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
+        
+        # Don't flush tracer if it's not available
+        try:
+            opik_tracer = OpikTracer()
+            opik_tracer.flush()
+        except:
+            pass
 
         raise HTTPException(status_code=500, detail=str(e))
 

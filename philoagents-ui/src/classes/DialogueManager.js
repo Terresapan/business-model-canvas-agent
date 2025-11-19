@@ -241,6 +241,10 @@ class DialogueManager {
   startDialogue(philosopher) {
     this.cancelDisconnectTimeout();
 
+    // NOTE: Files now persist across expert switches for better UX
+    // Users upload files once and can discuss with all business experts
+    // To clear files, users can upload new files or use a manual reset function
+
     this.activePhilosopher = philosopher;
     this.isTyping = true;
     this.currentMessage = "";
@@ -250,6 +254,23 @@ class DialogueManager {
 
     this.cursorVisible = true;
     this.startCursorBlink();
+  }
+
+  clearUploadedPdf() {
+    // Clear PDF data from global variables when starting new conversation
+    if (window.tempBusinessPdf) {
+      console.log("DEBUG: Clearing PDF data for new conversation");
+      window.tempBusinessPdf = null;
+      window.tempBusinessPdfName = null;
+    }
+  }
+
+  clearUploadedImage() {
+    // Clear image data from global variables when starting new conversation
+    if (window.tempBusinessImage) {
+      console.log("DEBUG: Clearing image data for new conversation");
+      window.tempBusinessImage = null;
+    }
   }
 
   closeDialogue() {

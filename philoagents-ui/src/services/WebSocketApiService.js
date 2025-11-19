@@ -159,6 +159,19 @@ class WebSocketApiService {
         window.tempBusinessImage = null;
       }
 
+      // Check for temporary PDF in global variable and inject if present
+      const tempPdf = window.tempBusinessPdf;
+      const tempPdfName = window.tempBusinessPdfName;
+      if (tempPdf) {
+        console.log(
+          "Found temporary PDF in global variable, attaching to WebSocket message..."
+        );
+        payload.pdf_base64 = tempPdf;
+        payload.pdf_name = tempPdfName;
+        window.tempBusinessPdf = null;
+        window.tempBusinessPdfName = null;
+      }
+
       console.log("Sending WebSocket message:", payload);
       this.socket.send(JSON.stringify(payload));
     } catch (error) {

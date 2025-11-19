@@ -56,6 +56,14 @@ function setupFormHandlers() {
         const submitBtn = document.getElementById('form-submit-btn');
         const cancelBtn = document.getElementById('form-cancel-btn');
 
+        // Stop propagation of clicks on the form to prevent them reaching Phaser
+        form.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        // Also stop mousedown/up/pointer events just in case Phaser uses those
+        form.addEventListener('mousedown', (e) => e.stopPropagation());
+        form.addEventListener('pointerdown', (e) => e.stopPropagation());
+
         // Handle form submission
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -181,6 +189,28 @@ async function handleFormSubmit() {
         current_focus: document.getElementById('current_focus').value.trim(),
     };
 
+    // Handle Image Upload - Store in LocalStorage only
+    const fileInput = document.getElementById('business_image');
+    if (fileInput && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        // 18MB limit
+        if (file.size > 18 * 1024 * 1024) {
+            alert('Image size must be less than 18MB');
+            return;
+        }
+        try {
+            const base64Image = await readFileAsBase64(file);
+            localStorage.setItem('temp_business_image', base64Image);
+            console.log('Image saved to localStorage (temp_business_image)');
+        } catch (e) {
+            console.error("Error reading file:", e);
+            alert("Failed to process image file");
+            return;
+        }
+    } else {
+        console.log("No new image selected, keeping existing localStorage data if any");
+    }
+
     // Validate required fields
     if (!formData.token || !formData.owner_name || !formData.business_name) {
         alert('Please fill in Token, Owner Name, and Business Name');
@@ -229,6 +259,9 @@ async function handleFormSubmit() {
 
         // Hide form
         hideForm();
+        
+        // Clear the file input
+        if (fileInput) fileInput.value = '';
 
         // Refresh the main menu dropdown if it exists
         if (window.refreshBusinessDropdown) {
@@ -256,6 +289,19 @@ async function handleFormSubmit() {
 
         alert(`Error: ${errorMessage}`);
     }
+}
+
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            // Remove data URL prefix (e.g. "data:image/jpeg;base64,")
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
 }
 
 export function getAllUsers() {

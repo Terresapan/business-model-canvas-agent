@@ -149,6 +149,16 @@ class WebSocketApiService {
         user_token: userToken,
       };
 
+      // Check for temporary image in global variable and inject if present
+      const tempImage = window.tempBusinessImage;
+      if (tempImage) {
+        console.log(
+          "Found temporary image in global variable, attaching to WebSocket message..."
+        );
+        payload.image_base64 = tempImage;
+        window.tempBusinessImage = null;
+      }
+
       console.log("Sending WebSocket message:", payload);
       this.socket.send(JSON.stringify(payload));
     } catch (error) {

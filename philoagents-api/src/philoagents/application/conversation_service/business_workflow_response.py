@@ -21,6 +21,7 @@ async def get_business_response(
     expert_context: str,
     user_token: str,
     user_context: Optional[Dict[str, Any]] = None,
+    image_base64: Optional[str] = None,
     new_thread: bool = False,
 ) -> tuple[str, BusinessCanvasState]:
     """Run a business canvas conversation through the workflow graph.
@@ -35,6 +36,7 @@ async def get_business_response(
         expert_context: Additional context about the expert.
         user_token: Unique identifier for the user to isolate conversations.
         user_context: Business user context and profile.
+        image_base64: Optional base64 encoded image to include in the context.
         new_thread: Whether to create a new conversation thread.
 
     Returns:
@@ -66,9 +68,22 @@ async def get_business_response(
         config = {
             "configurable": {"thread_id": thread_id},
         }
+
+        # Format messages and inject image if present
+        formatted_messages = __format_messages(messages=messages)
+        if image_base64:
+            if formatted_messages and isinstance(formatted_messages[-1], HumanMessage):
+                last_msg = formatted_messages[-1]
+                # Ensure we don't already have a list content (avoid double wrapping if logic changes)
+                if isinstance(last_msg.content, str):
+                    last_msg.content = [
+                        {"type": "text", "text": last_msg.content},
+                        {"type": "image_url", "image_url": f"data:image/png;base64,{image_base64}"},
+                    ]
+
         output_state = await graph.ainvoke(
             input={
-                "messages": __format_messages(messages=messages),
+                "messages": formatted_messages,
                 "expert_context": expert_context,
                 "expert_name": expert_name,
                 "expert_domain": expert_domain,

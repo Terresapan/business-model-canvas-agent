@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Optional
 import os
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -134,6 +134,7 @@ class BusinessChatMessage(BaseModel):
     message: str
     expert_id: str
     user_token: str
+    image_base64: Optional[str] = None
 
 
 @app.post("/chat/business")
@@ -165,6 +166,7 @@ async def business_chat(chat_message: BusinessChatMessage):
             expert_context=f"Domain: {expert.domain}. Expertise: {expert.perspective}",
             user_token=chat_message.user_token,
             user_context=user_context,
+            image_base64=chat_message.image_base64,
         )
         return {"response": response}
     except Exception as e:

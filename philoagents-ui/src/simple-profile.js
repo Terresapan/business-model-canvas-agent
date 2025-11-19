@@ -321,21 +321,127 @@ function hideForm() {
 }
 
 function setupFormHandlers() {
-  console.log("Setting up simple form handlers...");
+  console.log("Setting up simple form handlers v3.1...");
 
   const form = document.getElementById("client-form");
+  const formContainer = document.getElementById("client-form-container");
   const cancelBtn = document.getElementById("form-cancel-btn");
+  const submitBtn = document.getElementById("form-submit-btn");
+  const fileInput = document.getElementById("business_image");
 
+  // 1. Stop Propagation Helper
+  const stopAll = (e) => {
+    e.stopPropagation();
+    // We do NOT stopImmediatePropagation() here to allow internal form events to bubble up to the form itself
+  };
+
+  // 2. Container: Stop clicks from reaching Game
+  if (formContainer) {
+    ["click", "mousedown", "mouseup", "pointerdown", "pointerup"].forEach(
+      (evt) => {
+        formContainer.addEventListener(evt, stopAll);
+      }
+    );
+  }
+
+  // 3. Form: Handle Events
   if (form) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      await handleSubmit();
+    // Stop clicks on the form background
+    ["click", "mousedown", "mouseup", "pointerdown", "pointerup"].forEach(
+      (evt) => {
+        form.addEventListener(evt, stopAll);
+      }
+    );
+
+    // --- FILE INPUT CHANGE HANDLER (DIRECT BINDING) ---
+    if (fileInput) {
+      console.log("Found file input, binding CHANGE listener directly");
+
+      fileInput.addEventListener("change", async (e) => {
+        console.log("DIRECT CHANGE EVENT FIRED on file input");
+        if (fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          console.log("File selected:", file.name, file.size);
+
+          if (file.size > 18 * 1024 * 1024) {
+            alert("Image size must be less than 18MB");
+            fileInput.value = "";
+            return;
+          }
+
+          try {
+            const base64Image = await readFileAsBase64(file);
+            // Use global variable instead of localStorage to avoid size limits
+            window.tempBusinessImage = base64Image;
+            console.log("SAVED TO GLOBAL VARIABLE (window.tempBusinessImage)");
+            // Alert the user so they know it worked
+            alert("Image Ready! You can now click 'Create Profile'.");
+          } catch (err) {
+            console.error("Error processing image:", err);
+            alert("Failed to process image.");
+          }
+        }
+      });
+
+      // Prevent game interference
+      ["mousedown", "mouseup", "pointerdown", "pointerup"].forEach((evt) => {
+        fileInput.addEventListener(evt, stopAll);
+      });
+    } else {
+      console.error("CRITICAL: File input #business_image not found!");
+    }
+
+    // --- SUBMIT BUTTON HANDLER ---
+    if (submitBtn) {
+      submitBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Submit Clicked -> Calling handleSubmit");
+        await handleSubmit();
+      });
+      // Prevent click bleed-through
+      ["mousedown", "mouseup", "pointerdown", "pointerup"].forEach((evt) => {
+        submitBtn.addEventListener(evt, (e) => e.stopPropagation());
+      });
+    }
+
+    // --- INPUTS: Stop propagation for typing/clicking ---
+    // We exclude the file input from "stopAll" on click so the browser can open the dialog.
+    const inputs = form.querySelectorAll(
+      "input:not(#business_image), textarea, select, button:not(#form-submit-btn)"
+    );
+    inputs.forEach((input) => {
+      ["click", "mousedown", "mouseup", "pointerdown", "pointerup"].forEach(
+        (evt) => {
+          input.addEventListener(evt, stopAll);
+        }
+      );
     });
   }
 
+  // 4. Cancel Button
   if (cancelBtn) {
-    cancelBtn.addEventListener("click", hideForm);
+    cancelBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideForm();
+    });
   }
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // Remove data URL prefix (e.g. "data:image/jpeg;base64,")
+      // and remove newlines
+      const base64String = reader.result.split(",")[1];
+      const cleanBase64 = base64String.replace(/[\n\r]/g, "");
+      resolve(cleanBase64);
+    };
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
 }
 
 async function handleSubmit() {
@@ -343,6 +449,32 @@ async function handleSubmit() {
   console.log("Current mode:", currentMode);
   console.log("Edit token:", editToken);
   console.log("API URL being used:", apiUrl);
+
+  // Handle Image Upload - Store in LocalStorage only
+  const fileInput = document.getElementById("business_image");
+  if (fileInput && fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    // 18MB limit
+    if (file.size > 18 * 1024 * 1024) {
+      alert("Image size must be less than 18MB");
+      return;
+    }
+    try {
+      const base64Image = await readFileAsBase64(file);
+      // Use global variable instead of localStorage to avoid size limits
+      window.tempBusinessImage = base64Image;
+      console.log("Image saved to global variable (window.tempBusinessImage)");
+      alert("Image ready");
+    } catch (e) {
+      console.error("Error reading file:", e);
+      alert("Failed to process image file");
+      return;
+    }
+  } else {
+    console.log(
+      "No new image selected, keeping existing localStorage data if any"
+    );
+  }
 
   const formData = {
     token: document.getElementById("token").value.trim(),

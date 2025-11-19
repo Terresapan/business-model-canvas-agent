@@ -2,7 +2,7 @@
 
 This project is a course on building AI agents called "PhiloAgents". It consists of a Python backend (`philoagents-api`) and a JavaScript-based game UI (`philoagents-ui`).
 
-The backend is a FastAPI application that uses the `langchain`, `langgraph`, and `groq` libraries to create AI agents. It provides an API for the frontend to interact with the agents.
+The backend is a FastAPI application that uses the `langchain`, `langgraph`, `groq`, and `google-genai` libraries to create AI agents. It provides an API for the frontend to interact with the agents.
 
 The frontend is a web-based game built with the Phaser game framework. It allows users to interact with the "PhiloAgents" in a virtual world.
 
@@ -35,12 +35,40 @@ To stop the application, run:
 make infrastructure-stop
 ```
 
-**3. Populate the database:**
+**3. Database Management:**
 
 To populate the MongoDB Atlas database with the required data for the agents, run:
 
 ```bash
 make create-long-term-memory
+```
+
+To delete the long-term memory from the database, run:
+
+```bash
+make delete-long-term-memory
+```
+
+**4. Agent Interaction (CLI):**
+
+To call an agent directly from the command line (e.g., Turing with a default query), run:
+
+```bash
+make call-agent
+```
+
+**5. Evaluation:**
+
+To generate an evaluation dataset for the agents, run:
+
+```bash
+make generate-evaluation-dataset
+```
+
+To run the agent evaluation process, run:
+
+```bash
+make evaluate-agent
 ```
 
 # Development Conventions

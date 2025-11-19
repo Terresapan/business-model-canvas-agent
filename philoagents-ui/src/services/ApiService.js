@@ -97,11 +97,33 @@ class ApiService {
   async sendBusinessMessage(expert, message, userToken) {
     try {
       console.log("Sending business message:", { expert, message, userToken });
-      const data = await this.request("/chat/business", "POST", {
+
+      const payload = {
         message,
         expert_id: expert.id,
         user_token: userToken,
-      });
+      };
+
+      // Check for temporary image in global variable
+      const tempImage = window.tempBusinessImage;
+
+      if (tempImage) {
+        console.log("DEBUG: Found tempBusinessImage in global variable");
+        console.log("DEBUG: Image string length:", tempImage.length);
+        console.log("DEBUG: First 50 chars:", tempImage.substring(0, 50));
+
+        payload.image_base64 = tempImage;
+
+        // Clear it after sending so it doesn't persist for future messages unless re-uploaded
+        window.tempBusinessImage = null;
+        console.log(
+          "DEBUG: Image attached to payload and cleared from global variable"
+        );
+      } else {
+        console.log("DEBUG: No tempBusinessImage found in global variable");
+      }
+
+      const data = await this.request("/chat/business", "POST", payload);
 
       console.log("API response:", data);
       return data.response;

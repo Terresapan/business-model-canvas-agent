@@ -14,8 +14,8 @@
     </div>
     <script src="./simple-profile.js"></script>
     <script src="./bundle.min.js"></script>
-    <div id="client-form-container" class="form-overlay" style="display: none">
-      <form id="client-form">
+    <div id="client-form-container" class="form-overlay" style="display: none" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+      <form id="client-form" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
         <h3 id="form-title">Create New Client Profile</h3>
 
         <label for="token">Token (Unique ID):</label>
@@ -44,6 +44,9 @@
 
         <label for="current_focus">Current Focus:</label>
         <textarea id="current_focus" name="current_focus" rows="3"></textarea>
+
+        <label for="business_image">Business Image (Optional, max 18MB):</label>
+        <input type="file" id="business_image" name="business_image" accept="image/*" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" />
 
         <div class="form-buttons">
           <button type="submit" id="form-submit-btn">Create Profile</button>

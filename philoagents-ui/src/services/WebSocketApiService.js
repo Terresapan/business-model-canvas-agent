@@ -56,7 +56,7 @@ class WebSocketApiService {
         reject(new Error("WebSocket connection timeout"));
       }, this.connectionTimeout);
 
-      this.socket = new WebSocket(`${this.baseUrl}${endpoint}`);
+      this.socket = new WebSocket(`${this.wsUrl}${endpoint}`);
 
       this.socket.onopen = () => {
         console.log(`WebSocket connection established to ${endpoint}`);

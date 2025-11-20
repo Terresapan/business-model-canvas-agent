@@ -3,7 +3,7 @@ from typing import List, Optional
 import os
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from opik.integrations.langchain import OpikTracer
+
 from pydantic import BaseModel
 
 from philoagents.application.conversation_service.business_workflow_response import (
@@ -196,13 +196,7 @@ async def business_chat(chat_message: BusinessChatMessage):
         print(f"🔍 DEBUG: Error type: {type(e)}")
         import traceback
         print(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
-        
-        # Don't flush tracer if it's not available
-        try:
-            opik_tracer = OpikTracer()
-            opik_tracer.flush()
-        except:
-            pass
+
 
         raise HTTPException(status_code=500, detail=str(e))
 

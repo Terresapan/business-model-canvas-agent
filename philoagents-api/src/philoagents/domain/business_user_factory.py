@@ -242,7 +242,7 @@ class BusinessUserFactory:
             True if valid, False otherwise
         """
         expected_token = os.getenv("ADMIN_TOKEN", "philoagents-admin-token")
-        return admin_token == expected_token or admin_token == "agentgarden"
+        return admin_token == expected_token
 
     # --- UPDATE ---
     async def update_user(self, token: str, user_update_data: BusinessUser) -> bool:

@@ -4,9 +4,9 @@ import os
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Determine the environment based on the presence of a Cloud Run-specific variable
-is_production = "K_SERVICE" in os.environ
-ENV = "production" if is_production else "local"
+# Determine the environment
+# Priority: 1) Explicit ENV variable, 2) Cloud Run K_SERVICE detection, 3) Default to local
+ENV = os.getenv("ENV", "production" if "K_SERVICE" in os.environ else "local")
 
 
 class Settings(BaseSettings):

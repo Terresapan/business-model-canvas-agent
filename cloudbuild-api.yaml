@@ -33,7 +33,7 @@ steps:
       - "--port"
       - "8080"
       - "--set-secrets=LANGSMITH_API_KEY=LANGSMITH_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,MONGODB_URI=MONGODB_URI_PROD:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest"
-      - "--set-env-vars=LANGSMITH_PROJECT=Business Model Canvas Cloud,MONGODB_DB_NAME=philoagents"
+      - "--set-env-vars=LANGSMITH_PROJECT=Business Model Canvas Cloud,ENV=production"
 
 # 'images:', 'options:', and 'substitutions:' must be at the root level (no indentation).
 images:

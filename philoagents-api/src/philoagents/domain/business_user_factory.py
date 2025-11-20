@@ -7,6 +7,7 @@ from philoagents.config import settings
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure
 import threading
+import os
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -211,6 +212,37 @@ class BusinessUserFactory:
             error_msg = f"Unexpected error while creating user '{user.token}': {e}"
             logger.error(error_msg)
             raise DatabaseOperationError(error_msg) from e
+
+    async def create_admin_user(self, admin_data: dict) -> bool:
+        """
+        Creates an admin user with special privileges.
+        
+        Args:
+            admin_data: Dictionary containing admin user data
+            
+        Returns:
+            True if successful
+        """
+        admin_data['role'] = 'admin'
+        # Ensure token is present if not provided
+        if 'token' not in admin_data:
+            import uuid
+            admin_data['token'] = str(uuid.uuid4())
+            
+        return await self.create_user(BusinessUser(**admin_data))
+
+    def validate_admin_token(self, admin_token: str) -> bool:
+        """
+        Validate admin access token against environment variable.
+        
+        Args:
+            admin_token: The token to validate
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        expected_token = os.getenv("ADMIN_TOKEN", "philoagents-admin-token")
+        return admin_token == expected_token or admin_token == "agentgarden"
 
     # --- UPDATE ---
     async def update_user(self, token: str, user_update_data: BusinessUser) -> bool:

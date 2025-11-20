@@ -149,27 +149,34 @@ class WebSocketApiService {
         user_token: userToken,
       };
 
-      // Check for temporary image in global variable and inject if present
-      const tempImage = window.tempBusinessImage;
+      // Check for business-specific image using the user token for isolation
+      const imageKey = `tempBusinessImage_${userToken}`;
+      const tempImage = window[imageKey];
       if (tempImage) {
         console.log(
-          "Found temporary image in global variable, attaching to WebSocket message..."
+          `SECURE: Found business-specific image for ${imageKey}, attaching to WebSocket message...`
         );
         payload.image_base64 = tempImage;
-        window.tempBusinessImage = null;
+        console.log(`SECURITY: Clearing business-specific image ${imageKey}`);
+        window[imageKey] = null;
       }
 
-      // Check for temporary PDF in global variable and inject if present
-      const tempPdf = window.tempBusinessPdf;
-      const tempPdfName = window.tempBusinessPdfName;
+      // Check for business-specific PDF using the user token for isolation
+      const pdfKey = `tempBusinessPdf_${userToken}`;
+      const pdfNameKey = `tempBusinessPdfName_${userToken}`;
+      const tempPdf = window[pdfKey];
+      const tempPdfName = window[pdfNameKey];
       if (tempPdf) {
         console.log(
-          "Found temporary PDF in global variable, attaching to WebSocket message..."
+          `SECURE: Found business-specific PDF for ${pdfKey}, attaching to WebSocket message...`
         );
         payload.pdf_base64 = tempPdf;
         payload.pdf_name = tempPdfName;
-        window.tempBusinessPdf = null;
-        window.tempBusinessPdfName = null;
+        console.log(
+          `SECURITY: Clearing business-specific PDF ${pdfKey} and ${pdfNameKey}`
+        );
+        window[pdfKey] = null;
+        window[pdfNameKey] = null;
       }
 
       console.log("Sending WebSocket message:", payload);

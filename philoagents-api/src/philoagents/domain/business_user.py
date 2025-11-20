@@ -1,5 +1,6 @@
 from typing import List
 from pydantic import BaseModel, Field
+import uuid
 
 
 class BusinessUser(BaseModel):
@@ -10,22 +11,17 @@ class BusinessUser(BaseModel):
         owner_name (str): Name of the business owner.
         business_name (str): Name of the business.
         sector (str): Industry sector.
-        business_type (str): Type of business (e.g., "Local Bakery").
-        size (str): Business size description.
         challenges (List[str]): Current business challenges.
         goals (List[str]): Business goals and objectives.
-        current_focus (str): What the business is currently focusing on.
     """
 
-    token: str = Field(description="Access token for this user profile", min_length=1)
+    token: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Access token for this user profile")
+    role: str = Field(default="user", description="User role (admin or user)")
     owner_name: str = Field(description="Name of the business owner")
     business_name: str = Field(description="Name of the business")
     sector: str = Field(description="Industry sector")
-    business_type: str = Field(description="Type of business")
-    size: str = Field(description="Business size description")
     challenges: List[str] = Field(description="Current business challenges")
     goals: List[str] = Field(description="Business goals and objectives")
-    current_focus: str = Field(description="What the business is currently focusing on")
 
     def to_context_string(self) -> str:
         """Convert the business user profile to a formatted context string."""
@@ -33,11 +29,9 @@ class BusinessUser(BaseModel):
                 CLIENT PROFILE:
                 Name: {self.owner_name} (your client)
                 Business: {self.business_name}
-                Business Type: {self.business_type} in {self.sector}
-                Team Size: {self.size}
+                Sector: {self.sector}
                 Current Challenges: {', '.join(self.challenges)}
                 Business Goals: {', '.join(self.goals)}
-                Current Focus: {self.current_focus}
                 
                 Note: You are meeting with {self.owner_name.split()[0]} for a business consultation. 
                 They are your established client and you should know their name.

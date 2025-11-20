@@ -257,20 +257,51 @@ class DialogueManager {
   }
 
   clearUploadedPdf() {
-    // Clear PDF data from global variables when starting new conversation
+    // Clear business-specific PDF data from all global variables when starting new conversation
+    console.log(
+      "SECURITY: Clearing all business-specific PDF data for new conversation"
+    );
+
+    // Clear legacy non-business-specific variables for backward compatibility
     if (window.tempBusinessPdf) {
-      console.log("DEBUG: Clearing PDF data for new conversation");
+      console.log("SECURITY: Clearing legacy PDF variable tempBusinessPdf");
       window.tempBusinessPdf = null;
       window.tempBusinessPdfName = null;
     }
+
+    // Clear all business-specific PDF variables
+    Object.keys(window).forEach((key) => {
+      if (
+        key.startsWith("tempBusinessPdf_") ||
+        key.startsWith("tempBusinessPdfName_")
+      ) {
+        console.log(`SECURITY: Clearing business-specific PDF variable ${key}`);
+        window[key] = null;
+      }
+    });
   }
 
   clearUploadedImage() {
-    // Clear image data from global variables when starting new conversation
+    // Clear business-specific image data from all global variables when starting new conversation
+    console.log(
+      "SECURITY: Clearing all business-specific image data for new conversation"
+    );
+
+    // Clear legacy non-business-specific variable for backward compatibility
     if (window.tempBusinessImage) {
-      console.log("DEBUG: Clearing image data for new conversation");
+      console.log("SECURITY: Clearing legacy image variable tempBusinessImage");
       window.tempBusinessImage = null;
     }
+
+    // Clear all business-specific image variables
+    Object.keys(window).forEach((key) => {
+      if (key.startsWith("tempBusinessImage_")) {
+        console.log(
+          `SECURITY: Clearing business-specific image variable ${key}`
+        );
+        window[key] = null;
+      }
+    });
   }
 
   closeDialogue() {

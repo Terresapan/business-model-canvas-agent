@@ -104,51 +104,44 @@ class ApiService {
         user_token: userToken,
       };
 
-      // Check for shared business image in global variable (persists across expert switches)
-      const tempImage = window.tempBusinessImage;
+      // Check for business-specific image using the user token for isolation
+      const imageKey = `tempBusinessImage_${userToken}`;
+      const tempImage = window[imageKey];
       if (tempImage) {
-        console.log("DEBUG: Found shared tempBusinessImage in global variable");
-        console.log("DEBUG: Image string length:", tempImage.length);
-        console.log("DEBUG: First 50 chars:", tempImage.substring(0, 50));
+        console.log(`SECURE: Found business-specific image for ${imageKey}`);
+        console.log("SECURE: Image string length:", tempImage.length);
+        console.log("SECURE: First 50 chars:", tempImage.substring(0, 50));
 
         payload.image_base64 = tempImage;
-
-        // Image data persists across all business expert conversations for better UX
-        // Users upload once and can discuss with any expert
+        
         console.log(
-          "DEBUG: Shared image attached to payload and retained for cross-expert conversations"
+          "SECURE: Business-specific image attached to payload (persisted for session)"
         );
       } else {
-        console.log(
-          "DEBUG: No shared tempBusinessImage found in global variable"
-        );
+        console.log(`SECURE: No business-specific image found for ${imageKey}`);
       }
 
-      // Check for shared business PDF in global variable (persists across expert switches)
-      const tempPdf = window.tempBusinessPdf;
-      const tempPdfName = window.tempBusinessPdfName;
+      // Check for business-specific PDF using the user token for isolation
+      const pdfKey = `tempBusinessPdf_${userToken}`;
+      const pdfNameKey = `tempBusinessPdfName_${userToken}`;
+      const tempPdf = window[pdfKey];
+      const tempPdfName = window[pdfNameKey];
       if (tempPdf) {
-        console.log("DEBUG: Found shared tempBusinessPdf in global variable");
-        console.log("DEBUG: PDF string length:", tempPdf.length);
-        console.log("DEBUG: PDF name:", tempPdfName);
+        console.log(`SECURE: Found business-specific PDF for ${pdfKey}`);
+        console.log("SECURE: PDF string length:", tempPdf.length);
+        console.log("SECURE: PDF name:", tempPdfName);
 
         payload.pdf_base64 = tempPdf;
         payload.pdf_name = tempPdfName;
 
-        // PDF data persists across all business expert conversations for better UX
-        // Users upload once and can discuss with any expert
         console.log(
-          "DEBUG: Shared PDF attached to payload and retained for cross-expert conversations"
+          "SECURE: Business-specific PDF attached to payload (persisted for session)"
         );
       } else {
-        console.log(
-          "DEBUG: No shared tempBusinessPdf found in global variable"
-        );
+        console.log(`SECURE: No business-specific PDF found for ${pdfKey}`);
       }
 
       const data = await this.request("/chat/business", "POST", payload);
-
-      console.log("API response:", data);
       return data.response;
     } catch (error) {
       console.error("Error sending business message to API:", error);
@@ -235,13 +228,19 @@ class ApiService {
 
   /**
    * Fetches all business user profiles from the server.
+   * @param {string} [adminToken] - Optional admin token for accessing all users.
    * @returns {Promise<Array<Object>>} A list of user profiles.
    */
-  async getAllBusinessUsers() {
+  async getAllBusinessUsers(adminToken) {
     try {
       console.log("=== getAllBusinessUsers DEBUG ===");
       console.log("API URL being used:", this.apiUrl);
-      const url = `${this.apiUrl}/business/users`;
+      
+      let url = `${this.apiUrl}/business/users`;
+      if (adminToken) {
+          url = `${this.apiUrl}/admin/business/users?admin_token=${encodeURIComponent(adminToken)}`;
+      }
+      
       console.log("Full URL:", url);
 
       const response = await fetch(url, {

@@ -13,7 +13,37 @@ The project uses Docker to manage the local infrastructure (agent API and game U
 The project uses a top-level `Makefile` to orchestrate the build and run process.
 
 **Prerequisites:**
-- Ensure you have a `philoagents-api/.env` file containing your MongoDB Atlas connection string: `MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/...`
+- Ensure you have a `philoagents-api/.env` file containing:
+  - `MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/...`
+  - `ADMIN_TOKEN=test-admin-token` (or your preferred secure token for admin API access)
+
+# Business Features & Security
+
+The project now includes a robust Business User system with Role-Based Access Control (RBAC) and file isolation.
+
+## Access Modes
+
+1.  **Admin Access**:
+    - Accessed via the "Admin Access" button on the main menu.
+    - Requires a password (default: `agentgarden`) for the "Smart Login" UI.
+    - Provides a dashboard to:
+        - View all registered business profiles.
+        - Create new profiles.
+        - Edit existing profiles.
+        - Enter the game as any user.
+
+2.  **User Access**:
+    - Accessed via the "Enter Token" button.
+    - Requires a valid, unique Business Token (UUID).
+    - Provides a dashboard to:
+        - Edit their own profile.
+        - Enter the game with their specific business context.
+
+## Security & Isolation
+
+-   **File Isolation**: Files uploaded by a user (images/PDFs) are strictly isolated to their session. They persist across interactions with different experts but are cleared upon logout or session end. Users cannot access each other's files.
+-   **Token-Based Auth**: All business users are identified by a unique, auto-generated UUID token.
+-   **Role-Based Access Control**: API endpoints are secured. Only users with the `admin` role (or a valid `ADMIN_TOKEN`) can list all users or access sensitive endpoints.
 
 **1. Start the application:**
 

@@ -71,196 +71,35 @@ async def get_business_response(
             "configurable": {"thread_id": thread_id},
         }
 
-        # Format messages and inject image if present
+        # Format messages - file processing now happens inside the workflow
         formatted_messages = __format_messages(messages=messages)
-        if image_base64:
-            if formatted_messages and isinstance(formatted_messages[-1], HumanMessage):
-                last_msg = formatted_messages[-1]
-                # Ensure we don't already have a list content (avoid double wrapping if logic changes)
-                if isinstance(last_msg.content, str):
-                    last_msg.content = [
-                        {"type": "text", "text": last_msg.content},
-                        {"type": "image_url", "image_url": f"data:image/png;base64,{image_base64}"},
-                    ]
         
-        # Handle PDF and/or image processing using google-genai directly
-        if pdf_base64 or image_base64:
-            try:
-                print(f"🔍 DEBUG: Starting file processing")
-                print(f"🔍 DEBUG: Has PDF: {bool(pdf_base64)}")
-                print(f"🔍 DEBUG: Has image: {bool(image_base64)}")
-                
-                # Add file size validation (5MB max for solo business owners)
-                max_size_bytes = 5 * 1024 * 1024  # 5MB
-                
-                if pdf_base64:
-                    pdf_size = len(pdf_base64) * 3 / 4  # base64 to bytes (approximate)
-                    print(f"🔍 DEBUG: PDF base64 length: {len(pdf_base64)}")
-                    print(f"🔍 DEBUG: PDF estimated size: {pdf_size:.2f} bytes")
-                    print(f"🔍 DEBUG: PDF name: {pdf_name}")
-                    
-                    if pdf_size > max_size_bytes:
-                        raise RuntimeError(f"PDF size exceeds 5MB limit. Current: {pdf_size:.2f} bytes")
-                
-                if image_base64:
-                    image_size = len(image_base64) * 3 / 4  # base64 to bytes (approximate)
-                    print(f"🔍 DEBUG: Image base64 length: {len(image_base64)}")
-                    print(f"🔍 DEBUG: Image estimated size: {image_size:.2f} bytes")
-                    
-                    if image_size > max_size_bytes:
-                        raise RuntimeError(f"Image size exceeds 5MB limit. Current: {image_size:.2f} bytes")
-                
-                print(f"🔍 DEBUG: GEMINI_API_KEY exists: {bool(settings.GEMINI_API_KEY)}")
-                print(f"🔍 DEBUG: GEMINI_LLM_MODEL: {settings.GEMINI_LLM_MODEL}")
-                
-                # Import Google GenAI with detailed logging
-                try:
-                    from google import genai
-                    from google.genai import types
-                    print(f"🔍 DEBUG: Successfully imported google.genai")
-                except ImportError as e:
-                    print(f"❌ ERROR: Failed to import google.genai: {e}")
-                    raise RuntimeError(f"Google GenAI not available: {e}")
-                
-                # Initialize client with error handling
-                try:
-                    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-                    print(f"🔍 DEBUG: Successfully initialized GenAI client")
-                except Exception as e:
-                    print(f"❌ ERROR: Failed to initialize GenAI client: {e}")
-                    print(f"🔍 DEBUG: API key type: {type(settings.GEMINI_API_KEY)}")
-                    print(f"🔍 DEBUG: API key length: {len(settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else 'None'}")
-                    raise RuntimeError(f"Failed to initialize GenAI client: {e}")
-                
-                # Import base64 for file processing
-                import base64
-                
-                # Create the content parts
-                content_parts = []
-                
-                # Add the message text if it exists
-                if formatted_messages and isinstance(formatted_messages[-1], HumanMessage):
-                    if isinstance(formatted_messages[-1].content, str):
-                        content_parts.append(formatted_messages[-1].content)
-                        print(f"🔍 DEBUG: Added string message to content parts")
-                    elif isinstance(formatted_messages[-1].content, list):
-                        # Extract text from mixed content (ignore image_url parts)
-                        for part in formatted_messages[-1].content:
-                            if isinstance(part, dict) and part.get("type") == "text":
-                                content_parts.append(part["text"])
-                                print(f"🔍 DEBUG: Added text from mixed content parts")
-                
-                # Add the PDF if present
-                if pdf_base64:
-                    try:
-                        print("🔍 DEBUG: Adding PDF bytes to content parts...")
-                        pdf_bytes = base64.b64decode(pdf_base64)
-                        print(f"🔍 DEBUG: Successfully decoded PDF base64, length: {len(pdf_bytes)}")
-                        pdf_part = types.Part.from_bytes(
-                            data=pdf_bytes,
-                            mime_type='application/pdf',
-                        )
-                        print(f"🔍 DEBUG: Successfully created PDF part from {len(pdf_bytes)} bytes")
-                        content_parts.append(pdf_part)
-                    except Exception as e:
-                        print(f"❌ ERROR: Failed to process PDF: {e}")
-                        raise RuntimeError(f"Failed to process PDF: {e}")
-                
-                # Add the image if present
-                if image_base64:
-                    try:
-                        print("🔍 DEBUG: Adding image to content parts...")
-                        image_part = types.Part.from_bytes(
-                            data=base64.b64decode(image_base64),
-                            mime_type='image/png',
-                        )
-                        print(f"🔍 DEBUG: Successfully created image part from {len(image_base64)} base64 chars")
-                        content_parts.append(image_part)
-                    except Exception as e:
-                        print(f"❌ ERROR: Failed to process image: {e}")
-                        raise RuntimeError(f"Failed to process image: {e}")
-                
-                print(f"🔍 DEBUG: Content parts count: {len(content_parts)}")
-                
-                # Calculate token estimates for cost tracking
-                estimated_tokens = 0
-                for i, part in enumerate(content_parts):
-                    if isinstance(part, str):
-                        # Text content: roughly 4 characters per token
-                        tokens = len(part) / 4
-                        estimated_tokens += tokens
-                        print(f"🔍 DEBUG: Part {i} (text): {len(part)} chars ≈ {tokens:.1f} tokens")
-                    else:
-                        # File content: use approximate conversion rates
-                        if hasattr(part, 'data') and hasattr(part.data, '__len__'):
-                            file_size = len(part.data)
-                        elif isinstance(part, str) and part.startswith('data:'):
-                            # Base64 encoded file in content
-                            file_size = len(part.split(',')[1]) * 3 / 4 if ',' in part else 0
-                        else:
-                            file_size = 0
-                        
-                        # Gemini file token estimation: ~750 tokens per 1MB of file
-                        file_tokens = (file_size / (1024 * 1024)) * 750
-                        estimated_tokens += file_tokens
-                        mime_type = getattr(part, 'mime_type', 'unknown')
-                        print(f"🔍 DEBUG: Part {i} (file): {file_size} bytes ≈ {file_tokens:.1f} tokens (type: {mime_type})")
-                
-                print(f"🔍 DEBUG: TOTAL ESTIMATED TOKENS FOR THIS REQUEST: {estimated_tokens:.1f}")
-                
-                # Generate response using google-genai with detailed logging
-                try:
-                    print(f"🔍 DEBUG: Calling GenAI generate_content...")
-                    response = client.models.generate_content(
-                        model=settings.GEMINI_LLM_MODEL,
-                        contents=content_parts
-                    )
-                    print(f"🔍 DEBUG: Successfully got response from GenAI")
-                    print(f"🔍 DEBUG: Response type: {type(response)}")
-                    print(f"🔍 DEBUG: Response has text: {hasattr(response, 'text')}")
-                    if hasattr(response, 'text'):
-                        print(f"🔍 DEBUG: Response text length: {len(response.text)}")
-                except Exception as e:
-                    print(f"❌ ERROR: GenAI API call failed: {e}")
-                    print(f"🔍 DEBUG: Model: {settings.GEMINI_LLM_MODEL}")
-                    print(f"🔍 DEBUG: Content parts types: {[type(part) for part in content_parts]}")
-                    raise RuntimeError(f"GenAI API call failed: {e}")
-                
-                # Return the response directly
-                result_state = BusinessCanvasState(
-                    messages=formatted_messages + [AIMessage(content=response.text)],
-                    expert_context=expert_context,
-                    expert_name=expert_name,
-                    expert_domain=expert_domain,
-                    expert_perspective=expert_perspective,
-                    expert_style=expert_style,
-                    user_context=user_context,
-                    summary="",
-                )
-                print(f"🔍 DEBUG: Successfully created result state")
-                return response.text, result_state
-                
-            except Exception as e:
-                print(f"❌ ERROR in file processing: {e}")
-                print(f"🔍 DEBUG: File processing failed")
-                import traceback
-                print(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
-                raise RuntimeError(f"File processing failed: {e}")
+        # File processing is now handled inside the LangGraph workflow for unified tracing
+        # Pass file data as part of the workflow state instead of processing outside
+        workflow_input = {
+            "messages": formatted_messages,
+            "expert_context": expert_context,
+            "expert_name": expert_name,
+            "expert_domain": expert_domain,
+            "expert_perspective": expert_perspective,
+            "expert_style": expert_style,
+            "user_context": user_context,
+            "user_token": user_token,  # Include for business security validation
+            "summary": "",
+            "pdf_base64": pdf_base64,
+            "image_base64": image_base64,
+            "pdf_name": pdf_name,
+            "file_processing_completed": False,  # Start with files unprocessed
+        }
         
+        # The LangGraph workflow execution will be automatically traced by LangSmith
+        # All file processing will be nested within this main trace
         output_state = await graph.ainvoke(
-            input={
-                "messages": formatted_messages,
-                "expert_context": expert_context,
-                "expert_name": expert_name,
-                "expert_domain": expert_domain,
-                "expert_perspective": expert_perspective,
-                "expert_style": expert_style,
-                "user_context": user_context,
-                "summary": "",
-            },
+            input=workflow_input,
             config=config, # type: ignore
         )
         last_message = output_state["messages"][-1]
+        
         return last_message.content, BusinessCanvasState(**output_state)
     except Exception as e:
         raise RuntimeError(f"Error running business conversation workflow: {str(e)}") from e
@@ -319,6 +158,8 @@ async def get_business_streaming_response(
             "configurable": {"thread_id": thread_id},
         }
 
+        # Streaming workflow execution will be automatically traced by LangGraph
+        # Note: File processing is not supported in streaming mode for simplicity
         async for chunk in graph.astream(
             input={
                 "messages": __format_messages(messages=messages),
@@ -328,7 +169,12 @@ async def get_business_streaming_response(
                 "expert_perspective": expert_perspective,
                 "expert_style": expert_style,
                 "user_context": user_context,
+                "user_token": user_token,  # Include for business security validation
                 "summary": "",
+                "pdf_base64": None,  # File processing not supported in streaming
+                "image_base64": None,
+                "pdf_name": None,
+                "file_processing_completed": True,
             },
             config=config, # type: ignore
             stream_mode="messages",

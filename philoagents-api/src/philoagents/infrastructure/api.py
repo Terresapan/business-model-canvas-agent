@@ -242,10 +242,10 @@ async def validate_token(token: str = Query(...)):
             if user:
                 return {
                     "valid": True,
+                    "role": user.role,
                     "user": {
                         "business_name": user.business_name,
                         "sector": user.sector,
-                        "business_type": user.business_type,
                     }
                 }
             else:
@@ -324,14 +324,42 @@ async def create_business_user(user: BusinessUser):
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- READ (All) ---
-@app.get("/business/users", response_model=List[BusinessUser])
-async def get_all_business_users():
-    """Get a list of all business user profiles."""
+# REMOVED: Public endpoint exposing all users
+# @app.get("/business/users", response_model=List[BusinessUser])
+# async def get_all_business_users():
+#     """Get a list of all business user profiles."""
+#     try:
+#         user_factory = BusinessUserFactory()
+#         users = await user_factory.get_all_users()
+#         return users
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/business/users", response_model=List[BusinessUser])
+async def admin_get_all_business_users(admin_token: str = Query(...)):
+    """Admin endpoint to view all business profiles"""
+    user_factory = BusinessUserFactory()
+    if not user_factory.validate_admin_token(admin_token):
+        raise HTTPException(status_code=401, detail="Admin access required")
+    
     try:
-        user_factory = BusinessUserFactory()
         users = await user_factory.get_all_users()
         return users
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/business/user/me", response_model=BusinessUser)
+async def get_my_business_profile(token: str = Query(...)):
+    """Get ONLY the business profile for the provided token"""
+    user_factory = BusinessUserFactory()
+    try:
+        user = await user_factory.get_user_by_token(token)
+        if user:
+            return user
+        else:
+            raise HTTPException(status_code=404, detail="Profile not found")
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- READ (One) ---

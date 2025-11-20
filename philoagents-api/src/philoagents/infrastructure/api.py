@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Optional
 import os
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from opik.integrations.langchain import OpikTracer
+
 from pydantic import BaseModel
 
 from philoagents.application.conversation_service.business_workflow_response import (
@@ -134,14 +134,29 @@ class BusinessChatMessage(BaseModel):
     message: str
     expert_id: str
     user_token: str
+    image_base64: Optional[str] = None
+    pdf_base64: Optional[str] = None
+    pdf_name: Optional[str] = None
 
 
 @app.post("/chat/business")
 async def business_chat(chat_message: BusinessChatMessage):
     """Chat with a Business Canvas expert."""
     try:
+        print(f"🔍 DEBUG: Received business chat request")
+        print(f"🔍 DEBUG: Message: {chat_message.message[:100]}...")
+        print(f"🔍 DEBUG: Expert ID: {chat_message.expert_id}")
+        print(f"🔍 DEBUG: User token: {chat_message.user_token}")
+        print(f"🔍 DEBUG: Has image: {bool(chat_message.image_base64)}")
+        print(f"🔍 DEBUG: Has PDF: {bool(chat_message.pdf_base64)}")
+        if chat_message.pdf_name:
+            print(f"🔍 DEBUG: PDF name: {chat_message.pdf_name}")
+        if chat_message.pdf_base64:
+            print(f"🔍 DEBUG: PDF base64 length: {len(chat_message.pdf_base64)}")
+        
         expert_factory = BusinessExpertFactory()
         expert = expert_factory.get_expert(chat_message.expert_id)
+        print(f"🔍 DEBUG: Got expert: {expert.name} ({expert.domain})")
 
         # Get user context if token provided
         user_context = None
@@ -151,11 +166,15 @@ async def business_chat(chat_message: BusinessChatMessage):
                 user = await user_factory.get_user_by_token(chat_message.user_token)
                 if user:
                     user_context = user.model_dump()
+                    print(f"🔍 DEBUG: Got user context for: {user_context.get('business_name', 'Unknown')}")
+                else:
+                    print(f"🔍 DEBUG: No user found with token: {chat_message.user_token}")
             except (DatabaseConnectionError, DatabaseOperationError) as e:
                 # Continue without user context if database issues occur
                 print(f"Warning: Could not retrieve user context: {e}")
 
-        response, _ = await get_business_response(
+        print(f"🔍 DEBUG: Starting get_business_response call...")
+        response, state = await get_business_response(
             messages=chat_message.message,
             expert_id=chat_message.expert_id,
             expert_name=expert.name,
@@ -165,11 +184,19 @@ async def business_chat(chat_message: BusinessChatMessage):
             expert_context=f"Domain: {expert.domain}. Expertise: {expert.perspective}",
             user_token=chat_message.user_token,
             user_context=user_context,
+            image_base64=chat_message.image_base64,
+            pdf_base64=chat_message.pdf_base64,
+            pdf_name=chat_message.pdf_name,
         )
+        print(f"🔍 DEBUG: get_business_response completed successfully")
+        print(f"🔍 DEBUG: Response length: {len(response)}")
         return {"response": response}
     except Exception as e:
-        opik_tracer = OpikTracer()
-        opik_tracer.flush()
+        print(f"❌ ERROR in business_chat: {len(str(e))} characters")
+        print(f"🔍 DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
+
 
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -209,10 +236,10 @@ async def validate_token(token: str = Query(...)):
             if user:
                 return {
                     "valid": True,
+                    "role": user.role,
                     "user": {
                         "business_name": user.business_name,
                         "sector": user.sector,
-                        "business_type": user.business_type,
                     }
                 }
             else:
@@ -291,14 +318,42 @@ async def create_business_user(user: BusinessUser):
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- READ (All) ---
-@app.get("/business/users", response_model=List[BusinessUser])
-async def get_all_business_users():
-    """Get a list of all business user profiles."""
+# REMOVED: Public endpoint exposing all users
+# @app.get("/business/users", response_model=List[BusinessUser])
+# async def get_all_business_users():
+#     """Get a list of all business user profiles."""
+#     try:
+#         user_factory = BusinessUserFactory()
+#         users = await user_factory.get_all_users()
+#         return users
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/business/users", response_model=List[BusinessUser])
+async def admin_get_all_business_users(admin_token: str = Query(...)):
+    """Admin endpoint to view all business profiles"""
+    user_factory = BusinessUserFactory()
+    if not user_factory.validate_admin_token(admin_token):
+        raise HTTPException(status_code=401, detail="Admin access required")
+    
     try:
-        user_factory = BusinessUserFactory()
         users = await user_factory.get_all_users()
         return users
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/business/user/me", response_model=BusinessUser)
+async def get_my_business_profile(token: str = Query(...)):
+    """Get ONLY the business profile for the provided token"""
+    user_factory = BusinessUserFactory()
+    try:
+        user = await user_factory.get_user_by_token(token)
+        if user:
+            return user
+        else:
+            raise HTTPException(status_code=404, detail="Profile not found")
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- READ (One) ---

@@ -1,6 +1,6 @@
 import uuid
 from typing import Any, AsyncGenerator, Union, Dict, Optional
-
+from philoagents.config import settings
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 # from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
 from langgraph.checkpoint.memory import InMemorySaver
@@ -21,6 +21,9 @@ async def get_business_response(
     expert_context: str,
     user_token: str,
     user_context: Optional[Dict[str, Any]] = None,
+    image_base64: Optional[str] = None,
+    pdf_base64: Optional[str] = None,
+    pdf_name: Optional[str] = None,
     new_thread: bool = False,
 ) -> tuple[str, BusinessCanvasState]:
     """Run a business canvas conversation through the workflow graph.
@@ -35,6 +38,7 @@ async def get_business_response(
         expert_context: Additional context about the expert.
         user_token: Unique identifier for the user to isolate conversations.
         user_context: Business user context and profile.
+        image_base64: Optional base64 encoded image to include in the context.
         new_thread: Whether to create a new conversation thread.
 
     Returns:
@@ -66,20 +70,36 @@ async def get_business_response(
         config = {
             "configurable": {"thread_id": thread_id},
         }
+
+        # Format messages - file processing now happens inside the workflow
+        formatted_messages = __format_messages(messages=messages)
+        
+        # File processing is now handled inside the LangGraph workflow for unified tracing
+        # Pass file data as part of the workflow state instead of processing outside
+        workflow_input = {
+            "messages": formatted_messages,
+            "expert_context": expert_context,
+            "expert_name": expert_name,
+            "expert_domain": expert_domain,
+            "expert_perspective": expert_perspective,
+            "expert_style": expert_style,
+            "user_context": user_context,
+            "user_token": user_token,  # Include for business security validation
+            "summary": "",
+            "pdf_base64": pdf_base64,
+            "image_base64": image_base64,
+            "pdf_name": pdf_name,
+            "file_processing_completed": False,  # Start with files unprocessed
+        }
+        
+        # The LangGraph workflow execution will be automatically traced by LangSmith
+        # All file processing will be nested within this main trace
         output_state = await graph.ainvoke(
-            input={
-                "messages": __format_messages(messages=messages),
-                "expert_context": expert_context,
-                "expert_name": expert_name,
-                "expert_domain": expert_domain,
-                "expert_perspective": expert_perspective,
-                "expert_style": expert_style,
-                "user_context": user_context,
-                "summary": "",
-            },
+            input=workflow_input,
             config=config, # type: ignore
         )
         last_message = output_state["messages"][-1]
+        
         return last_message.content, BusinessCanvasState(**output_state)
     except Exception as e:
         raise RuntimeError(f"Error running business conversation workflow: {str(e)}") from e
@@ -138,6 +158,8 @@ async def get_business_streaming_response(
             "configurable": {"thread_id": thread_id},
         }
 
+        # Streaming workflow execution will be automatically traced by LangGraph
+        # Note: File processing is not supported in streaming mode for simplicity
         async for chunk in graph.astream(
             input={
                 "messages": __format_messages(messages=messages),
@@ -147,7 +169,12 @@ async def get_business_streaming_response(
                 "expert_perspective": expert_perspective,
                 "expert_style": expert_style,
                 "user_context": user_context,
+                "user_token": user_token,  # Include for business security validation
                 "summary": "",
+                "pdf_base64": None,  # File processing not supported in streaming
+                "image_base64": None,
+                "pdf_name": None,
+                "file_processing_completed": True,
             },
             config=config, # type: ignore
             stream_mode="messages",

@@ -1,26 +1,14 @@
-import opik
 from loguru import logger
 
 
 class Prompt:
     def __init__(self, name: str, prompt: str) -> None:
         self.name = name
-
-        try:
-            self.__prompt = opik.Prompt(name=name, prompt=prompt)
-        except Exception:
-            logger.warning(
-                "Can't use Opik to version the prompt (probably due to missing or invalid credentials). Falling back to local prompt. The prompt is not versioned, but it's still usable."
-            )
-
-            self.__prompt = prompt
+        self.__prompt = prompt
 
     @property
     def prompt(self) -> str:
-        if isinstance(self.__prompt, opik.Prompt):
-            return self.__prompt.prompt
-        else:
-            return self.__prompt
+        return self.__prompt
 
     def __str__(self) -> str:
         return self.prompt
@@ -37,7 +25,7 @@ __BUSINESS_EXPERT_CHARACTER_CARD = """
 Let's roleplay. You're {{expert_name}}, a business consultant specializing in {{expert_domain}} 
 for the Business Model Canvas. You're helping a business owner understand and develop this 
 specific component of their business model. Use practical, actionable advice in a conversational 
-and engaging way. Responses must never exceed 50 words.
+and engaging way. Responses must NEVER exceed 50 words.
 
 Your expertise and communication style are detailed below.
 
@@ -64,6 +52,7 @@ You must always follow these rules:
 - When asked about their name or identity, confirm that you know them from your client consultation and say their name.
 - Provide practical, business-focused advice tailored to their specific context.
 - Keep responses conversational, actionable, consice and under 50 words.
+- User might provide additional context, such as pdf or image, about their business, you still need to keep responses UNDER 50 words.
 - Ask follow-up questions to better understand their specific needs.
 
 ---

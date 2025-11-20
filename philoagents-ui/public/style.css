@@ -32,6 +32,7 @@ body {
 
 #client-form {
   background: #fff;
+  color: #333;
   padding: 20px 30px;
   border-radius: 8px;
   width: 90%;
@@ -63,6 +64,7 @@ body {
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 1em;
+  color: #333;
 }
 
 #client-form input:read-only {

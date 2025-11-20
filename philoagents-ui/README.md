@@ -1,14 +1,14 @@
-# PhiloAgents Town 📖
+# Business Model Canvas Agents Town 📖
 
-![Philosopher Town](public/assets/game_screenshot.png)
+![Business Model Canvas Agents Town](public/assets/game_screenshot.png)
 
-PhiloAgents Town is the interactive UI component that allows you to engage in philosophical discussions with the Philosopher Agents. Discuss consciousness with Descartes, question Leibniz on logic, or challengue Chomsky on language.
+Business Model Canvas Agents Town is the interactive UI component that allows you to engage in business model canvas discussions with the Business Model Canvas Agents. 
 
 # Overview
 
-This web-based game features a Pokemon-style town where you can explore and engage with famous philosophers and thinkers. Each character has their own unique perspective and conversational style based on their works and ideas.
+This web-based game features a Pokemon-style town where you can explore and engage with Business Model Canvas Agents. Each character has their own unique perspective and conversational style based on their works and ideas.
 
-The UI is built with Phaser 3, a powerful HTML5 game framework, and connects to a backend API that powers the philosopher agents' conversational abilities using LLM Agents.
+The UI is built with Phaser 3, a powerful HTML5 game framework, and connects to a backend API that powers the Business Model Canvas Agents' conversational abilities using LLM Agents.
 
 # Getting Started
 
@@ -45,7 +45,7 @@ The local development server runs on http://localhost:8080 by default.
 
 Explore a charming pixel-art town with various buildings and natural elements.
 
-![Philosopher Town](public/assets/philoagents_town.png)
+![Business Model Canvas Agents Town](public/assets/philoagents_town.png)
 
 To build the town, we have used the following assets:
 
@@ -53,16 +53,16 @@ To build the town, we have used the following assets:
 - [LPC Plant Repack](https://opengameart.org/content/lpc-plant-repack)
 - [LPC Compatible Ancient Greek Architecture](https://opengameart.org/content/lpc-compatible-ancient-greek-architecture)
 
-## Philosophical Characters
+## Business Model Canvas Agents
 
-Interact with famous philosophers like Socrates, Aristotle, Plato, and AI thinkers like Turing and Chomsky.
+Interact with Business Model Canvas Agents like Socrates, Aristotle, Plato, and AI thinkers like Turing and Chomsky.
 Every character sprite has been built with the [Universal LPC Spritesheet Generator](https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#?body=Body_color_light&head=Human_m)
 
-![Ada Image](public/assets/sprite_image.png)
+![Business Model Canvas Agents Sprite](public/assets/sprite_image.png)
 
 ## Dialogue System
 
-Engage in conversations with philosophers to learn about their ideas and perspectives. The dialogue system is controlled by the [DialogueBox](https://github.com/neural-maze/philoagents/blob/main/ui/src/scenes/DialogueBox.js) and [DialogueManager](https://github.com/neural-maze/philoagents/blob/main/ui/src/scenes/DialogueManager.js) classes.
+Engage in conversations with Business Model Canvas Agents to learn about their ideas and perspectives. The dialogue system is controlled by the [DialogueBox](https://github.com/neural-maze/philoagents/blob/main/ui/src/scenes/DialogueBox.js) and [DialogueManager](https://github.com/neural-maze/philoagents/blob/main/ui/src/scenes/DialogueManager.js) classes.
 
 ## Dynamic Movement
 
@@ -96,7 +96,7 @@ This is great if you want to debug, but you need to understand that this is just
 # Controls
 
 - Arrow keys: Move your character around the town
-- Space: Interact with philosophers when you're close to them
+- Space: Interact with Business Model Canvas Agents when you're close to them
 - ESC: Close dialogue windows or open the pause menu
 
 # Contributing

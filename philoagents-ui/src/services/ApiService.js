@@ -97,13 +97,51 @@ class ApiService {
   async sendBusinessMessage(expert, message, userToken) {
     try {
       console.log("Sending business message:", { expert, message, userToken });
-      const data = await this.request("/chat/business", "POST", {
+
+      const payload = {
         message,
         expert_id: expert.id,
         user_token: userToken,
-      });
+      };
 
-      console.log("API response:", data);
+      // Check for business-specific image using the user token for isolation
+      const imageKey = `tempBusinessImage_${userToken}`;
+      const tempImage = window[imageKey];
+      if (tempImage) {
+        console.log(`SECURE: Found business-specific image for ${imageKey}`);
+        console.log("SECURE: Image string length:", tempImage.length);
+        console.log("SECURE: First 50 chars:", tempImage.substring(0, 50));
+
+        payload.image_base64 = tempImage;
+        
+        console.log(
+          "SECURE: Business-specific image attached to payload (persisted for session)"
+        );
+      } else {
+        console.log(`SECURE: No business-specific image found for ${imageKey}`);
+      }
+
+      // Check for business-specific PDF using the user token for isolation
+      const pdfKey = `tempBusinessPdf_${userToken}`;
+      const pdfNameKey = `tempBusinessPdfName_${userToken}`;
+      const tempPdf = window[pdfKey];
+      const tempPdfName = window[pdfNameKey];
+      if (tempPdf) {
+        console.log(`SECURE: Found business-specific PDF for ${pdfKey}`);
+        console.log("SECURE: PDF string length:", tempPdf.length);
+        console.log("SECURE: PDF name:", tempPdfName);
+
+        payload.pdf_base64 = tempPdf;
+        payload.pdf_name = tempPdfName;
+
+        console.log(
+          "SECURE: Business-specific PDF attached to payload (persisted for session)"
+        );
+      } else {
+        console.log(`SECURE: No business-specific PDF found for ${pdfKey}`);
+      }
+
+      const data = await this.request("/chat/business", "POST", payload);
       return data.response;
     } catch (error) {
       console.error("Error sending business message to API:", error);
@@ -190,13 +228,19 @@ class ApiService {
 
   /**
    * Fetches all business user profiles from the server.
+   * @param {string} [adminToken] - Optional admin token for accessing all users.
    * @returns {Promise<Array<Object>>} A list of user profiles.
    */
-  async getAllBusinessUsers() {
+  async getAllBusinessUsers(adminToken) {
     try {
       console.log("=== getAllBusinessUsers DEBUG ===");
       console.log("API URL being used:", this.apiUrl);
-      const url = `${this.apiUrl}/business/users`;
+      
+      let url = `${this.apiUrl}/business/users`;
+      if (adminToken) {
+          url = `${this.apiUrl}/admin/business/users?admin_token=${encodeURIComponent(adminToken)}`;
+      }
+      
       console.log("Full URL:", url);
 
       const response = await fetch(url, {

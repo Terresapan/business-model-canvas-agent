@@ -1,5 +1,6 @@
 import { Scene } from "phaser";
 import apiService from "../services/ApiService.js";
+import { AdminInterface } from "../services/AdminInterface.js";
 
 export class MainMenu extends Scene {
   constructor() {
@@ -33,57 +34,203 @@ export class MainMenu extends Scene {
       })
       .setOrigin(0.5);
 
-    // Load users from database
-    await this.loadUsersFromDatabase();
+    // Initial State: Show only two options
+    this.createInitialMenu(centerX, startY, buttonSpacing);
 
-    // Setup keyboard input (needs to be before createTokenInput)
+    // Setup keyboard input
     this.setupKeyboardInput();
-
-    // Add token input section (after database loads)
-    this.createTokenInput(centerX, startY);
-
-    // Create buttons in a 2x2 grid layout
-    const firstLineY = startY + buttonSpacing;
-    const secondLineY = firstLineY + buttonSpacing + 10; // Extra space between rows
-
-    // First row: Enter and Instructions (side by side)
-    this.createButton(centerX - 180, firstLineY, "Enter", () => {
-      this.validateAndEnterGame();
-    });
-
-    this.createButton(centerX + 180, firstLineY, "Instructions", () => {
-      this.showInstructions();
-    });
-
-    // Second row: Create Profile and Edit Profile (side by side)
-    this.createButton(centerX - 180, secondLineY, "Create Profile", () => {
-      // Call global function from simple-profile.js
-      if (window.showCreateForm) {
-        window.showCreateForm();
-      } else {
-        console.error('showCreateForm function not found');
-      }
-    });
-
-    this.createButton(
-      centerX + 180,
-      secondLineY,
-      "Edit Profile",
-      () => {
-        this.showEditProfile();
-      }
-    );
 
     // Expose refresh function globally for the form
     window.refreshBusinessDropdown = () => {
-      this.loadUsersFromDatabase();
+      if (this.adminInterface && this.adminInterface.adminToken) {
+          this.loadUsersFromDatabase(this.adminInterface.adminToken);
+      }
     };
   }
 
-  async loadUsersFromDatabase() {
+  createInitialMenu(centerX, startY, buttonSpacing) {
+      // Clear any existing elements if returning to menu
+      this.clearMenuElements();
+
+      this.add.text(centerX, startY - 50, "Select Access Mode:", {
+          fontSize: "24px",
+          fontFamily: "Arial",
+          color: "#ffffff",
+          stroke: "#000000",
+          strokeThickness: 2
+      }).setOrigin(0.5);
+
+      // 1. Admin Access
+      this.createButton(centerX - 180, startY + 20, "Admin Access", () => {
+          this.handleAdminAccess();
+      });
+
+      // 2. User Access (Token Entry)
+      this.createButton(centerX + 180, startY + 20, "Enter Token", () => {
+          this.handleUserAccess();
+      });
+  }
+
+  clearMenuElements() {
+      // Helper to clear UI elements when switching views
+      // (In a real Phaser game we might use Groups, but here we'll just rely on scene restart or careful management)
+      // For simplicity, we'll just restart the scene if we need a full reset, 
+      // but for sub-menus we might want to just hide/destroy specific buttons.
+      // For now, let's assume we build the UI additively or restart.
+      // Actually, let's implement a simple cleanup if we were storing references.
+      if (this.tokenDisplay) this.tokenDisplay.destroy();
+      if (this.dropdownText) this.dropdownText.destroy();
+      // ... (clearing buttons is harder without references, but we can just restart scene)
+  }
+
+  async handleAdminAccess() {
+      const password = prompt("Enter Admin Password:");
+      if (!password) return;
+
+      const adminInterface = new AdminInterface(apiService.apiUrl);
+      const success = await adminInterface.login(password);
+      
+      if (success) {
+          this.adminInterface = adminInterface;
+          this.showMessage("Admin Logged In!", "#00ff00");
+          this.showAdminDashboard();
+      }
+  }
+
+  async handleUserAccess() {
+      const token = prompt("Enter your Business Token:");
+      if (token && token.trim()) {
+          // Validate token
+          const validation = await apiService.validateToken(token.trim());
+          if (validation.valid) {
+              this.userToken = token.trim();
+              this.showMessage(`Welcome, ${validation.user.business_name}!`, "#00ff00");
+              this.showUserDashboard();
+          } else {
+              this.showMessage("Invalid Token", "#ff0000");
+          }
+      }
+  }
+
+  showAdminDashboard() {
+      // Restart scene to clear initial buttons, but pass data to maintain state?
+      // Or just clear and rebuild. Let's clear and rebuild for smoother UX.
+      this.scene.restart({ mode: 'admin', adminInterface: this.adminInterface });
+  }
+
+  showUserDashboard() {
+      this.scene.restart({ mode: 'user', userToken: this.userToken });
+  }
+
+  // Handle scene restart with data
+  init(data) {
+      if (data.mode === 'admin') {
+          this.currentMode = 'admin';
+          this.adminInterface = data.adminInterface;
+          // We'll handle UI creation in create() based on this mode
+      } else if (data.mode === 'user') {
+          this.currentMode = 'user';
+          this.userToken = data.userToken;
+      } else {
+          this.currentMode = 'initial';
+      }
+  }
+
+  // OVERRIDE create to handle modes
+  async create() {
+    this.add.image(0, 0, "background").setOrigin(0, 0);
+    this.add.image(510, 260, "logo").setScale(0.55);
+
+    const centerX = this.cameras.main.width / 2;
+    const startY = 580;
+    const buttonSpacing = 65;
+
+    this.add
+      .text(centerX, 360, "Business Model Canvas", {
+        fontSize: "64px",
+        fontFamily: "Arial",
+        color: "#47a8c9",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5);
+
+    if (this.currentMode === 'admin') {
+        // Admin dashboard has more rows, so it needs to start higher
+        this.createAdminDashboard(centerX, 480, buttonSpacing);
+    } else if (this.currentMode === 'user') {
+        // User dashboard also has multiple rows
+        this.createUserDashboard(centerX, 480, buttonSpacing);
+    } else {
+        // Initial menu needs to be lower to avoid background graph
+        this.createInitialMenu(centerX, 580, buttonSpacing);
+    }
+
+    this.setupKeyboardInput();
+
+    window.refreshBusinessDropdown = () => {
+      if (this.currentMode === 'admin' && this.adminInterface) {
+          this.loadUsersFromDatabase(this.adminInterface.adminToken);
+      }
+    };
+  }
+
+  async createAdminDashboard(centerX, startY, buttonSpacing) {
+      // Dropdown
+      this.createDropdownButton(centerX, startY - 30, 350, 40);
+      await this.loadUsersFromDatabase(this.adminInterface.adminToken);
+
+      // Buttons
+      const firstLineY = startY + 40;
+      const secondLineY = firstLineY + buttonSpacing;
+
+      // Row 1: Enter Game, Instructions
+      this.createButton(centerX - 180, firstLineY, "Enter Game", () => this.validateAndEnterGame());
+      this.createButton(centerX + 180, firstLineY, "Instructions", () => this.showInstructions());
+
+      // Row 2: Create Profile, Edit Profile
+      this.createButton(centerX - 180, secondLineY, "Create Profile", () => {
+          if (window.showCreateForm) {
+              window.showCreateForm();
+          } else {
+              alert("Error: Profile form module not loaded.");
+          }
+      });
+      this.createButton(centerX + 180, secondLineY, "Edit Profile", () => this.showEditProfile());
+      
+      // Back Button
+      this.createButton(centerX, secondLineY + buttonSpacing, "Logout", () => {
+          this.adminInterface = null;
+          this.scene.restart({ mode: 'initial' });
+      });
+  }
+
+  createUserDashboard(centerX, startY, buttonSpacing) {
+      this.add.text(centerX, startY, `Token: ${this.userToken}`, { fontSize: "16px", color: "#ffffff", backgroundColor: "#333" }).setOrigin(0.5);
+
+      const firstLineY = startY + 60;
+      const secondLineY = firstLineY + buttonSpacing;
+      
+      // Row 1: Enter Game, Instructions
+      this.createButton(centerX - 180, firstLineY, "Enter Game", () => this.validateAndEnterGame());
+      this.createButton(centerX + 180, firstLineY, "Instructions", () => this.showInstructions());
+
+      // Row 2: Edit Profile, Back
+      this.createButton(centerX - 180, secondLineY, "Edit Profile", () => {
+          if (window.showEditForm) window.showEditForm(this.userToken);
+      });
+      this.createButton(centerX + 180, secondLineY, "Back", () => {
+          this.userToken = null;
+          this.scene.restart({ mode: 'initial' });
+      });
+  }
+
+  async loadUsersFromDatabase(adminToken = null) {
     try {
       console.log("Loading users from database...");
-      this.databaseUsers = await apiService.getAllBusinessUsers();
+      // Use the new method that supports admin token
+      this.databaseUsers = await apiService.getAllBusinessUsers(adminToken);
       console.log("Loaded database users:", this.databaseUsers);
 
       // If we have database users, use them
@@ -96,12 +243,15 @@ export class MainMenu extends Scene {
           const currentSelection = this.businesses[this.selectedBusinessIndex];
           this.dropdownText.setText(currentSelection || "Select a business...");
         }
+        
+        // Show success message
+        this.showMessage(`Loaded ${this.businesses.length} profiles.`, "#000000");
       } else {
         // No users in database yet - show helpful message
-        console.log("No users found in database. Please create a profile first.");
+        console.log("No users found in database.");
         this.businesses = [];
         if (this.dropdownText) {
-          this.dropdownText.setText("No profiles - Create one!");
+          this.dropdownText.setText("No profiles found");
         }
       }
     } catch (error) {
@@ -109,29 +259,64 @@ export class MainMenu extends Scene {
       // Fall back to empty list
       this.businesses = [];
       if (this.dropdownText) {
-        this.dropdownText.setText("Error loading - Try again");
+        this.dropdownText.setText("Error loading");
       }
+      this.showMessage("Failed to load profiles. Admin access required?", "#ff0000");
     }
   }
 
-  createTokenInput(centerX, y) {
-    // Create dropdown field background
-    const dropdownWidth = 350;
-    const dropdownHeight = 40;
+  createTokenEntryUI(centerX, y) {
+      // Label
+      this.add.text(centerX, y - 35, "Enter Your Business Token:", {
+          fontSize: "18px",
+          fontFamily: "Arial",
+          color: "#2b97bd",
+          stroke: "#000000",
+          strokeThickness: 1,
+      }).setOrigin(0.5);
 
-    // Add label
-    this.add
-      .text(centerX, y - 35, "Select Your Business:", {
-        fontSize: "18px",
-        fontFamily: "Arial",
-        color: "#2b97bd",
-        stroke: "#000000",
-        strokeThickness: 1,
-      })
-      .setOrigin(0.5);
+      // Display current token or placeholder
+      const tokenDisplay = this.add.text(centerX, y, "Click to Enter Token", {
+          fontSize: "20px",
+          fontFamily: "Monospace",
+          color: "#ffffff",
+          backgroundColor: "#333333",
+          padding: { x: 10, y: 5 }
+      }).setOrigin(0.5).setInteractive();
 
-    // Create main dropdown button
-    this.createDropdownButton(centerX, y, dropdownWidth, dropdownHeight);
+      this.tokenDisplay = tokenDisplay;
+
+      tokenDisplay.on('pointerdown', () => {
+          const token = prompt("Enter your Business Token:");
+          if (token) {
+              this.userToken = token.trim();
+              this.tokenDisplay.setText(this.userToken);
+              this.selectedBusinessIndex = -1; // Clear dropdown selection
+          }
+      });
+      
+      // Also create the dropdown (hidden initially or empty) for Admin use
+      this.createDropdownButton(centerX, y + 60, 350, 40);
+      // Hide it initially if empty? No, just leave it empty.
+      this.dropdownText.setText("Admin: Load Profiles first");
+  }
+
+  async handleAdminAccess() {
+      const adminInterface = new AdminInterface(apiService.apiUrl);
+      // Login handles the prompting now
+      const success = await adminInterface.login();
+      
+      if (success) {
+          this.showMessage("Admin Logged In!", "#00ff00");
+          // Load users using the admin token (which is now stored in adminInterface)
+          // Note: validateToken in login() already fetched the users into adminInterface.businesses
+          // We should use that or reload.
+          // Let's reload to be consistent with the MainMenu logic
+          await this.loadUsersFromDatabase(adminInterface.adminToken);
+          
+          this.adminInterface = adminInterface; // Store it
+          this.showAdminDashboard();
+      }
   }
 
   createDropdownButton(centerX, y, width, height) {
@@ -371,29 +556,26 @@ export class MainMenu extends Scene {
   }
 
   validateAndEnterGame() {
-    if (!this.businesses || this.businesses.length === 0) {
-      this.showMessage("No profiles available. Create a profile first.", "#ff0000");
-      return;
+    if (this.currentMode === 'user' && this.userToken) {
+        this.registry.set("gameMode", "business");
+        this.registry.set("userToken", this.userToken);
+        this.scene.start("Game");
+        return;
     }
 
-    const selectedBusiness = this.businesses[this.selectedBusinessIndex];
-    if (!selectedBusiness) {
-      this.showMessage("Please select a business from the dropdown.", "#ff0000");
-      return;
-    }
-
-    // Find the user in database to get their token
-    const user = this.databaseUsers.find(u => u.business_name === selectedBusiness);
-
-    if (user && user.token) {
-      this.registry.set("gameMode", "business");
-      this.registry.set("userToken", user.token);
-      this.scene.start("Game");
-    } else {
-      // Fallback to old behavior
-      this.registry.set("gameMode", "business");
-      this.registry.set("userToken", selectedBusiness);
-      this.scene.start("Game");
+    if (this.currentMode === 'admin') {
+        if (this.businesses && this.businesses.length > 0 && this.selectedBusinessIndex >= 0) {
+            const selectedBusiness = this.businesses[this.selectedBusinessIndex];
+            const user = this.databaseUsers.find(u => u.business_name === selectedBusiness);
+            
+            if (user && user.token) {
+                this.registry.set("gameMode", "business");
+                this.registry.set("userToken", user.token);
+                this.scene.start("Game");
+                return;
+            }
+        }
+        this.showMessage("Please select a profile.", "#ff0000");
     }
   }
 

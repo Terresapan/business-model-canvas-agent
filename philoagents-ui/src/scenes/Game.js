@@ -404,17 +404,19 @@ export class Game extends Scene {
     ];
 
     animConfig.forEach((config) => {
-      anims.create({
-        key: config.key,
-        frames: anims.generateFrameNames("sophia", {
-          prefix: config.prefix,
-          start: 0,
-          end: 8,
-          zeroPad: 4,
-        }),
-        frameRate: 10,
-        repeat: -1,
-      });
+      if (!anims.exists(config.key)) {
+        anims.create({
+          key: config.key,
+          frames: anims.generateFrameNames("sophia", {
+            prefix: config.prefix,
+            start: 0,
+            end: 8,
+            zeroPad: 4,
+          }),
+          frameRate: 10,
+          repeat: -1,
+        });
+      }
     });
   }
 

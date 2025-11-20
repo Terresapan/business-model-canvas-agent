@@ -56,7 +56,7 @@ class WebSocketApiService {
         reject(new Error("WebSocket connection timeout"));
       }, this.connectionTimeout);
 
-      this.socket = new WebSocket(`${this.baseUrl}${endpoint}`);
+      this.socket = new WebSocket(`${this.wsUrl}${endpoint}`);
 
       this.socket.onopen = () => {
         console.log(`WebSocket connection established to ${endpoint}`);
@@ -148,6 +148,36 @@ class WebSocketApiService {
         expert_id: expert.id,
         user_token: userToken,
       };
+
+      // Check for business-specific image using the user token for isolation
+      const imageKey = `tempBusinessImage_${userToken}`;
+      const tempImage = window[imageKey];
+      if (tempImage) {
+        console.log(
+          `SECURE: Found business-specific image for ${imageKey}, attaching to WebSocket message...`
+        );
+        payload.image_base64 = tempImage;
+        console.log(`SECURITY: Clearing business-specific image ${imageKey}`);
+        window[imageKey] = null;
+      }
+
+      // Check for business-specific PDF using the user token for isolation
+      const pdfKey = `tempBusinessPdf_${userToken}`;
+      const pdfNameKey = `tempBusinessPdfName_${userToken}`;
+      const tempPdf = window[pdfKey];
+      const tempPdfName = window[pdfNameKey];
+      if (tempPdf) {
+        console.log(
+          `SECURE: Found business-specific PDF for ${pdfKey}, attaching to WebSocket message...`
+        );
+        payload.pdf_base64 = tempPdf;
+        payload.pdf_name = tempPdfName;
+        console.log(
+          `SECURITY: Clearing business-specific PDF ${pdfKey} and ${pdfNameKey}`
+        );
+        window[pdfKey] = null;
+        window[pdfNameKey] = null;
+      }
 
       console.log("Sending WebSocket message:", payload);
       this.socket.send(JSON.stringify(payload));

@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import logging
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -68,7 +69,7 @@ if settings.LANGSMITH_API_KEY:
     os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
     os.environ["LANGSMITH_PROJECT"] = settings.LANGSMITH_PROJECT
 
-# --- Debug Logging ---
-print(f"🔧 CONFIG LOADED: ENV={settings.ENV}")
-print(f"🔧 CONFIG LOADED: DB_NAME={settings.MONGODB_DB_NAME}")
-print(f"🔧 CONFIG LOADED: LANGSMITH_PROJECT={settings.LANGSMITH_PROJECT}")
+
+logger.info(f"🔧 CONFIG LOADED: ENV={settings.ENV}")
+logger.info(f"🔧 CONFIG LOADED: DB_NAME={settings.MONGODB_DB_NAME}")
+logger.info(f"🔧 CONFIG LOADED: LANGSMITH_PROJECT={settings.LANGSMITH_PROJECT}")

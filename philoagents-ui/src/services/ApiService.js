@@ -2,64 +2,64 @@ class ApiService {
   constructor() {
     console.log("=== API SERVICE INIT DEBUG ===");
 
-    // Check if NODE_ENV is defined (webpack defines it) - fallback to "production" for built apps
+    // Check if NODE_ENV is defined (webpack defines it) - default to "production" for built apps
     const nodeEnv =
-      typeof process !== "undefined" && process.env && process.env.NODE_ENV
-        ? process.env.NODE_ENV
-        : "development";
+      (typeof process !== "undefined" && process.env && process.env.NODE_ENV) ||
+      (typeof global !== "undefined" &&
+        global.process &&
+        global.process.env &&
+        global.process.env.NODE_ENV) ||
+      "production"; // Changed default from "development" to "production"
     console.log("NODE_ENV:", nodeEnv);
 
     const isProd = nodeEnv === "production";
     console.log("Is production build:", isProd);
 
-    // Always use localhost in development mode for Docker
-    if (
-      !isProd ||
-      (typeof window !== "undefined" &&
-        window.location.hostname === "localhost" &&
-        window.location.port === "8080")
-    ) {
-      console.log("Development mode - using localhost");
-      console.log("Protocol:", window.location.protocol);
-      console.log("Hostname:", window.location.hostname);
-      console.log("Port:", window.location.port);
+    // First priority: If API_URL is explicitly provided via webpack env, use it
+    if (typeof API_URL !== "undefined" && API_URL) {
+      this.apiUrl = API_URL;
+      console.log("Using API_URL from build environment:", API_URL);
+      console.log("=== API SERVICE INIT COMPLETE ===");
+      console.log("Final API URL:", this.apiUrl);
+      return;
+    }
 
+    console.log("No explicit API_URL found, using hostname detection");
+    console.log("Protocol:", window.location.protocol);
+    console.log("Hostname:", window.location.hostname);
+    console.log("Port:", window.location.port);
+
+    // Development/localhost check - only for actual development environments
+    if (
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname === "0.0.0.0"
+    ) {
+      console.log("Development localhost mode - using localhost:8000");
       this.apiUrl = "http://localhost:8000";
-      console.log("Set API URL to:", this.apiUrl);
     } else {
       console.log("Production mode detected");
-      // Use window.location to determine API URL in production
+
+      // Detect Cloud Run service and route to correct API service
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
 
-      // If API_URL is defined via webpack env, use it
-      if (typeof API_URL !== "undefined" && API_URL) {
-        this.apiUrl = API_URL;
-        console.log("Using API_URL from build environment:", API_URL);
+      if (hostname.includes("philoagents-ui-")) {
+        // We're on the UI service, switch to API service
+        const apiHostname = hostname.replace(
+          "philoagents-ui-",
+          "philoagents-api-"
+        );
+        this.apiUrl = `${protocol}//${apiHostname}`;
+        console.log("Detected UI service, using API service URL:", this.apiUrl);
+      } else if (hostname.includes("philoagents-api-")) {
+        // Already on API service
+        console.log("Already on API service hostname:", hostname);
+        this.apiUrl = `${protocol}//${hostname}`;
       } else {
-        // Detect Cloud Run service and route to correct API service
-        console.log("Current hostname:", hostname);
-
-        if (hostname.includes("philoagents-ui-")) {
-          // We're on the UI service, switch to API service
-          const apiHostname = hostname.replace(
-            "philoagents-ui-",
-            "philoagents-api-"
-          );
-          this.apiUrl = `${protocol}//${apiHostname}`;
-          console.log(
-            "Detected UI service, using API service URL:",
-            this.apiUrl
-          );
-        } else if (hostname.includes("philoagents-api-")) {
-          // Already on API service
-          console.log("Already on API service hostname:", hostname);
-          this.apiUrl = `${protocol}//${hostname}`;
-        } else {
-          // Fallback for other production environments
-          console.log("Unknown production hostname, using as-is:", hostname);
-          this.apiUrl = `${protocol}//${hostname}`;
-        }
+        // Fallback for other production environments
+        console.log("Unknown production hostname, using as-is:", hostname);
+        this.apiUrl = `${protocol}//${hostname}`;
       }
     }
 
@@ -113,7 +113,7 @@ class ApiService {
         console.log("SECURE: First 50 chars:", tempImage.substring(0, 50));
 
         payload.image_base64 = tempImage;
-        
+
         console.log(
           "SECURE: Business-specific image attached to payload (persisted for session)"
         );
@@ -235,12 +235,14 @@ class ApiService {
     try {
       console.log("=== getAllBusinessUsers DEBUG ===");
       console.log("API URL being used:", this.apiUrl);
-      
+
       let url = `${this.apiUrl}/business/users`;
       if (adminToken) {
-          url = `${this.apiUrl}/admin/business/users?admin_token=${encodeURIComponent(adminToken)}`;
+        url = `${
+          this.apiUrl
+        }/admin/business/users?admin_token=${encodeURIComponent(adminToken)}`;
       }
-      
+
       console.log("Full URL:", url);
 
       const response = await fetch(url, {

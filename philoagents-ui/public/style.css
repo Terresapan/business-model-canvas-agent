@@ -97,3 +97,44 @@ body {
   background-color: #6c757d;
   color: white;
 }
+
+/* --- CHAT BOX STYLES --- */
+
+.chat-box-container {
+    background-color: rgba(0, 0, 0, 0.85);
+    border: 2px solid #ffffff;
+    border-radius: 4px;
+    padding: 15px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    pointer-events: auto;
+    font-family: 'Courier New', Courier, monospace;
+    color: #ffffff;
+    font-size: 18px;
+    line-height: 1.5;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.chat-box-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Custom Scrollbar for Chat Box */
+.chat-box-container::-webkit-scrollbar {
+    width: 10px;
+}
+
+.chat-box-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.chat-box-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+}
+
+.chat-box-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.8);
+}

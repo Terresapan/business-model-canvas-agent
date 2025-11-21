@@ -50,7 +50,10 @@ module.exports = {
       inject: false, // Don't auto-inject scripts
     }),
     new CopyPlugin({
-      patterns: [{ from: "src/simple-profile.js", to: "simple-profile.js" }],
+      patterns: [
+        { from: "public/style.css", to: "style.css" },
+        { from: "public/flower.ico", to: "flower.ico" },
+      ],
     }),
   ],
 };

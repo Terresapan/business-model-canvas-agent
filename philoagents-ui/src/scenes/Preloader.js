@@ -23,8 +23,8 @@ export class Preloader extends Scene {
     });
 
     // General assets
-    this.load.image("background", "BMC.jpg");
-    // this.load.image("logo", "logo.png");
+    this.load.image("background", "BMC.png");
+    //this.load.image("logo", "logo.png");
 
     // Tilesets
     this.load.image("tuxmon-tiles", "tilesets/tuxmon-sample-32px-extruded.png");

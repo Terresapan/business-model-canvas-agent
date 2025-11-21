@@ -5,52 +5,55 @@ class DialogueBox {
         
         // Set default configuration values
         const {
-            x = 100,
-            y = 500,
+            x = 512, // Centered horizontally (1024/2)
+            y = 600, // Positioned towards bottom
             width = 824,
             height = 200,
-            backgroundColor = 0x000000,
-            backgroundAlpha = 0.7,
-            borderColor = 0xffffff,
-            borderWidth = 2,
-            textConfig = {
-                font: '24px Arial',
-                fill: '#ffffff',
-                wordWrap: { width: 784 }
-            },
             depth = 30
         } = config;
         
-        // Create background
-        const graphics = scene.add.graphics();
-        graphics.fillStyle(backgroundColor, backgroundAlpha);
-        graphics.fillRect(x, y, width, height);
-        graphics.lineStyle(borderWidth, borderColor);
-        graphics.strokeRect(x, y, width, height);
+        this.width = width;
+        this.height = height;
+
+        // Create DOM element
+        this.domElement = scene.add.dom(x, y).createFromHTML(`
+            <div class="chat-box-container" style="width: ${width}px; height: ${height}px;">
+                <div class="chat-box-content"></div>
+            </div>
+        `);
+
+        this.domElement.setDepth(depth);
+        this.domElement.setScrollFactor(0);
         
-        // Create text with padding
-        this.text = scene.add.text(x + 20, y + 20, '', textConfig);
+        // Store reference to the content div for updating text
+        this.contentDiv = this.domElement.node.querySelector('.chat-box-content');
+        this.containerDiv = this.domElement.node.querySelector('.chat-box-container');
         
-        // Group elements
-        this.container = scene.add.container(0, 0, [graphics, this.text]);
-        this.container.setDepth(depth);
-        this.container.setScrollFactor(0);
         this.hide();
     }
     
     show(message, awaitInput = false) {
-        this.text.setText(message);
-        this.container.setVisible(true);
+        if (this.contentDiv) {
+            // Handle newlines and preserve whitespace
+            this.contentDiv.innerText = message;
+            
+            // Auto-scroll to bottom
+            if (this.containerDiv) {
+                this.containerDiv.scrollTop = this.containerDiv.scrollHeight;
+            }
+        }
+        
+        this.domElement.setVisible(true);
         this.awaitingInput = awaitInput;
     }
     
     hide() {
-        this.container.setVisible(false);
+        this.domElement.setVisible(false);
         this.awaitingInput = false;
     }
     
     isVisible() {
-        return this.container.visible;
+        return this.domElement.visible;
     }
 
     isAwaitingInput() {

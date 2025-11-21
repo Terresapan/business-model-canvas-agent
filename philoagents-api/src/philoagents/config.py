@@ -6,16 +6,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Determine the environment
 # Priority: 1) Explicit ENV variable, 2) Cloud Run K_SERVICE detection, 3) Default to local
-ENV = os.getenv("ENV", "production" if "K_SERVICE" in os.environ else "local")
-
+def get_current_env():
+    return os.getenv("ENV", "production" if "K_SERVICE" in os.environ else "local")
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env" if ENV == "local" else None,
+        env_file=".env",
         extra="ignore", 
         env_file_encoding="utf-8"
     )
     
+    # --- Environment ---
+    ENV: str = Field(default_factory=get_current_env)
+
     # --- GEMINI Configuration ---
     GEMINI_API_KEY: str
     GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
@@ -36,7 +39,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def set_db_name(self):
-        if ENV == "local":
+        if self.ENV == "local":
             self.MONGODB_DB_NAME = self.MONGODB_DB_DEV_NAME
         return self
 
@@ -64,3 +67,8 @@ if settings.LANGSMITH_API_KEY:
     os.environ["LANGSMITH_TRACING"] = "true" if settings.LANGSMITH_TRACING else "false"
     os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
     os.environ["LANGSMITH_PROJECT"] = settings.LANGSMITH_PROJECT
+
+# --- Debug Logging ---
+print(f"🔧 CONFIG LOADED: ENV={settings.ENV}")
+print(f"🔧 CONFIG LOADED: DB_NAME={settings.MONGODB_DB_NAME}")
+print(f"🔧 CONFIG LOADED: LANGSMITH_PROJECT={settings.LANGSMITH_PROJECT}")

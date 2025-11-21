@@ -2,7 +2,7 @@
 
 ![Business Model Canvas Agents Town](public/assets/game_screenshot.png)
 
-Business Model Canvas Agents Town is the interactive UI component that allows you to engage in business model canvas discussions with the Business Model Canvas Agents. 
+Business Model Canvas Agents Town is the interactive UI application that allows you to engage in business model canvas discussions with the Business Model Canvas Agents. 
 
 # Overview
 

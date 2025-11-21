@@ -266,6 +266,28 @@ class ApiService {
   }
 
   /**
+   * Fetches a single business user profile by token.
+   * @param {string} token - The unique token of the user to fetch.
+   * @returns {Promise<Object>} The user profile.
+   */
+  async getBusinessUser(token) {
+    try {
+      const response = await fetch(`${this.apiUrl}/business/user/${token}`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to fetch user");
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching business user:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Creates a new business user profile.
    * @param {Object} userData - The user profile object matching the BusinessUser model.
    * @returns {Promise<Object>} The server response.

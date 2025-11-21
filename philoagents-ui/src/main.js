@@ -27,10 +27,17 @@ const config = {
             gravity: { y: 0 },
         },
     },
+    dom: {
+        createContainer: true
+    },
 };
 
 console.log('Creating Phaser game with config:', config);
 const game = new Phaser.Game(config);
 console.log('Phaser game created:', game);
+
+// Initialize Profile Manager
+import profileManager from './services/ProfileManager';
+profileManager.initialize();
 
 export default game;

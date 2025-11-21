@@ -62,6 +62,7 @@ module.exports = {
       "typeof PLUGIN_CAMERA3D": JSON.stringify(false),
       "typeof PLUGIN_FBINSTANT": JSON.stringify(false),
       "typeof FEATURE_SOUND": JSON.stringify(true),
+      "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "production"),
       "process.env.API_URL": JSON.stringify(process.env.API_URL),
     }),
     new HtmlWebpackPlugin({

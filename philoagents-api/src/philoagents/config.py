@@ -5,20 +5,21 @@ import logging
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Determine the environment
-# Priority: 1) Explicit ENV variable, 2) Cloud Run K_SERVICE detection, 3) Default to local
-def get_current_env():
-    return os.getenv("ENV", "production" if "K_SERVICE" in os.environ else "local")
+# Configure logger for this module
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore", 
-        env_file_encoding="utf-8"
+        env_file_encoding="utf-8",
+        case_sensitive=True  # Ensure ENV reads from environment
     )
     
     # --- Environment ---
-    ENV: str = Field(default_factory=get_current_env)
+    # This will read from ENV environment variable, or fall back to detecting Cloud Run
+    ENV: str = Field(default="local")
 
     # --- GEMINI Configuration ---
     GEMINI_API_KEY: str
@@ -39,9 +40,20 @@ class Settings(BaseSettings):
     MONGODB_USER_COLLECTION: str = "business_users"
 
     @model_validator(mode='after')
-    def set_db_name(self):
+    def configure_environment(self):
+        # Auto-detect Cloud Run if ENV not explicitly set to production
+        if self.ENV == "local" and "K_SERVICE" in os.environ:
+            self.ENV = "production"
+            logger.info("🔧 Detected Cloud Run (K_SERVICE present), switching ENV to 'production'")
+        
+        # Set database name based on environment
         if self.ENV == "local":
             self.MONGODB_DB_NAME = self.MONGODB_DB_DEV_NAME
+            logger.info(f"🔧 ENV is 'local', using dev database: {self.MONGODB_DB_NAME}")
+        else:
+            self.MONGODB_DB_NAME = "philoagents"
+            logger.info(f"🔧 ENV is '{self.ENV}', using production database: {self.MONGODB_DB_NAME}")
+        
         return self
 
     # --- Agents Configuration ---

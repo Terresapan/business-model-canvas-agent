@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     MONGODB_DB_NAME: str = "philoagents"
     MONGODB_DB_DEV_NAME: str = "philoagents_dev"
     MONGODB_USER_COLLECTION: str = "business_users"
+    MONGO_STATE_CHECKPOINT_COLLECTION: str = "checkpoints"
+    MONGO_STATE_WRITES_COLLECTION: str = "checkpoint_writes"
 
     @model_validator(mode='after')
     def configure_environment(self):

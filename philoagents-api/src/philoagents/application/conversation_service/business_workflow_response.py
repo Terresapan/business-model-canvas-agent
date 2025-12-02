@@ -2,14 +2,14 @@ import uuid
 from typing import Any, AsyncGenerator, Union, Dict, Optional
 from philoagents.config import settings
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
-# from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.mongodb import MongoDBSaver
+# from langgraph.checkpoint.memory import InMemorySaver
 from philoagents.application.conversation_service.workflow.graph import (
     create_business_workflow_graph,
 )
 from philoagents.application.conversation_service.workflow.state import BusinessCanvasState
 
-checkpointer = InMemorySaver()
+# checkpointer = InMemorySaver()
 
 async def get_business_response(
     messages: str | list[str] | list[dict[str, Any]],
@@ -53,54 +53,55 @@ async def get_business_response(
     graph_builder = create_business_workflow_graph()
 
     try:
-        # async with AsyncMongoDBSaver.from_conn_string(
-        #     conn_string=settings.MONGO_URI, 
-        #     db_name=settings.MONGO_DB_NAME, 
-        #     checkpoint_collection_name=settings.MONGO_STATE_CHECKPOINT_COLLECTION, 
-        #     writes_collection_name=settings.MONGO_STATE_WRITES_COLLECTION,
-        # ) as checkpointer:
-        graph = graph_builder.compile(checkpointer=checkpointer)
+        with MongoDBSaver.from_conn_string(
+            conn_string=settings.MONGODB_URI, 
+            db_name=settings.MONGODB_DB_NAME, 
+            checkpoint_collection_name=settings.MONGO_STATE_CHECKPOINT_COLLECTION, 
+            writes_collection_name=settings.MONGO_STATE_WRITES_COLLECTION,
+            ttl=3600,
+        ) as checkpointer:
+            graph = graph_builder.compile(checkpointer=checkpointer)
 
-        # Generate thread ID using expert ID and user token
-        thread_id = f"{expert_id}:{user_token}"
-        
-        # Append UUID if starting new thread
-        if new_thread:
-            thread_id = f"{thread_id}:{uuid.uuid4()}"
-        config = {
-            "configurable": {"thread_id": thread_id},
-        }
+            # Generate thread ID using expert ID and user token
+            thread_id = f"{expert_id}:{user_token}"
+            
+            # Append UUID if starting new thread
+            if new_thread:
+                thread_id = f"{thread_id}:{uuid.uuid4()}"
+            config = {
+                "configurable": {"thread_id": thread_id},
+            }
 
-        # Format messages - file processing now happens inside the workflow
-        formatted_messages = __format_messages(messages=messages)
-        
-        # File processing is now handled inside the LangGraph workflow for unified tracing
-        # Pass file data as part of the workflow state instead of processing outside
-        workflow_input = {
-            "messages": formatted_messages,
-            "expert_context": expert_context,
-            "expert_name": expert_name,
-            "expert_domain": expert_domain,
-            "expert_perspective": expert_perspective,
-            "expert_style": expert_style,
-            "user_context": user_context,
-            "user_token": user_token,  # Include for business security validation
-            "summary": "",
-            "pdf_base64": pdf_base64,
-            "image_base64": image_base64,
-            "pdf_name": pdf_name,
-            "file_processing_completed": False,  # Start with files unprocessed
-        }
-        
-        # The LangGraph workflow execution will be automatically traced by LangSmith
-        # All file processing will be nested within this main trace
-        output_state = await graph.ainvoke(
-            input=workflow_input,
-            config=config, # type: ignore
-        )
-        last_message = output_state["messages"][-1]
-        
-        return last_message.content, BusinessCanvasState(**output_state)
+            # Format messages - file processing now happens inside the workflow
+            formatted_messages = __format_messages(messages=messages)
+            
+            # File processing is now handled inside the LangGraph workflow for unified tracing
+            # Pass file data as part of the workflow state instead of processing outside
+            workflow_input = {
+                "messages": formatted_messages,
+                "expert_context": expert_context,
+                "expert_name": expert_name,
+                "expert_domain": expert_domain,
+                "expert_perspective": expert_perspective,
+                "expert_style": expert_style,
+                "user_context": user_context,
+                "user_token": user_token,  # Include for business security validation
+                "summary": "",
+                "pdf_base64": pdf_base64,
+                "image_base64": image_base64,
+                "pdf_name": pdf_name,
+                "file_processing_completed": False,  # Start with files unprocessed
+            }
+            
+            # The LangGraph workflow execution will be automatically traced by LangSmith
+            # All file processing will be nested within this main trace
+            output_state = await graph.ainvoke(
+                input=workflow_input,
+                config=config, # type: ignore
+            )
+            last_message = output_state["messages"][-1]
+            
+            return last_message.content, BusinessCanvasState(**output_state)
     except Exception as e:
         raise RuntimeError(f"Error running business conversation workflow: {str(e)}") from e
 
@@ -140,49 +141,49 @@ async def get_business_streaming_response(
     graph_builder = create_business_workflow_graph()
 
     try:
-        # async with AsyncMongoDBSaver.from_conn_string(
-        #     conn_string=settings.MONGO_URI,
-        #     db_name=settings.MONGO_DB_NAME,
-        #     checkpoint_collection_name=settings.MONGO_STATE_CHECKPOINT_COLLECTION,
-        #     writes_collection_name=settings.MONGO_STATE_WRITES_COLLECTION,
-        # ) as checkpointer:
-        graph = graph_builder.compile(checkpointer=checkpointer)
+        with MongoDBSaver.from_conn_string(
+            conn_string=settings.MONGODB_URI,
+            db_name=settings.MONGODB_DB_NAME,
+            checkpoint_collection_name=settings.MONGO_STATE_CHECKPOINT_COLLECTION,
+            writes_collection_name=settings.MONGO_STATE_WRITES_COLLECTION,
+        ) as checkpointer:
+            graph = graph_builder.compile(checkpointer=checkpointer)
 
-        # Generate thread ID using expert ID and user token
-        thread_id = f"{expert_id}:{user_token}"
-        
-        # Append UUID if starting new thread
-        if new_thread:
-            thread_id = f"{thread_id}:{uuid.uuid4()}"
-        config = {
-            "configurable": {"thread_id": thread_id},
-        }
+            # Generate thread ID using expert ID and user token
+            thread_id = f"{expert_id}:{user_token}"
+            
+            # Append UUID if starting new thread
+            if new_thread:
+                thread_id = f"{thread_id}:{uuid.uuid4()}"
+            config = {
+                "configurable": {"thread_id": thread_id},
+            }
 
-        # Streaming workflow execution will be automatically traced by LangGraph
-        # Note: File processing is not supported in streaming mode for simplicity
-        async for chunk in graph.astream(
-            input={
-                "messages": __format_messages(messages=messages),
-                "expert_context": expert_context,
-                "expert_name": expert_name,
-                "expert_domain": expert_domain,
-                "expert_perspective": expert_perspective,
-                "expert_style": expert_style,
-                "user_context": user_context,
-                "user_token": user_token,  # Include for business security validation
-                "summary": "",
-                "pdf_base64": None,  # File processing not supported in streaming
-                "image_base64": None,
-                "pdf_name": None,
-                "file_processing_completed": True,
-            },
-            config=config, # type: ignore
-            stream_mode="messages",
-        ):
-            if chunk[1]["langgraph_node"] == "business_conversation_node" and isinstance( # type: ignore
-                chunk[0], AIMessageChunk # type: ignore
+            # Streaming workflow execution will be automatically traced by LangGraph
+            # Note: File processing is not supported in streaming mode for simplicity
+            async for chunk in graph.astream(
+                input={
+                    "messages": __format_messages(messages=messages),
+                    "expert_context": expert_context,
+                    "expert_name": expert_name,
+                    "expert_domain": expert_domain,
+                    "expert_perspective": expert_perspective,
+                    "expert_style": expert_style,
+                    "user_context": user_context,
+                    "user_token": user_token,  # Include for business security validation
+                    "summary": "",
+                    "pdf_base64": None,  # File processing not supported in streaming
+                    "image_base64": None,
+                    "pdf_name": None,
+                    "file_processing_completed": True,
+                },
+                config=config, # type: ignore
+                stream_mode="messages",
             ):
-                yield chunk[0].content # type: ignore
+                if chunk[1]["langgraph_node"] == "business_conversation_node" and isinstance( # type: ignore
+                    chunk[0], AIMessageChunk # type: ignore
+                ):
+                    yield chunk[0].content # type: ignore
 
     except Exception as e:
         raise RuntimeError(

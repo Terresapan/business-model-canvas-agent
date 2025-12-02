@@ -18,14 +18,25 @@ from philoagents.application.conversation_service.business_security import (
 )
 from loguru import logger
 
+def _sanitize_base64(b64_string: str | None) -> str | None:
+    """Sanitize base64 string, handling Swagger placeholders and padding."""
+    if not b64_string or b64_string == "string":
+        return None
+    
+    # Fix padding if needed
+    missing_padding = len(b64_string) % 4
+    if missing_padding:
+        b64_string += "=" * (4 - missing_padding)
+    return b64_string
+
 async def file_processing_node(state: BusinessCanvasState):
     """Handle PDF and image processing validation within the LangGraph workflow.
     
     This node validates business context for file operations.
     Actual file content is now passed directly to the LLM via LangChain.
     """
-    pdf_base64 = state.get("pdf_base64")
-    image_base64 = state.get("image_base64")
+    pdf_base64 = _sanitize_base64(state.get("pdf_base64"))
+    image_base64 = _sanitize_base64(state.get("image_base64"))
     pdf_name = state.get("pdf_name")
     user_token = state.get("user_token")
     
@@ -121,8 +132,8 @@ async def business_conversation_node(state: BusinessCanvasState, config: Runnabl
         user_context_section = BusinessUserFactory.format_user_context(None)
 
     # Check if we need to process files - always use traced GenAI when files are present
-    pdf_base64 = state.get("pdf_base64")
-    image_base64 = state.get("image_base64")
+    pdf_base64 = _sanitize_base64(state.get("pdf_base64"))
+    image_base64 = _sanitize_base64(state.get("image_base64"))
     pdf_name = state.get("pdf_name")
     user_token = state.get("user_token")
     
